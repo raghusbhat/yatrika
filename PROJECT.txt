@@ -1,0 +1,209 @@
+Product Requirements Document (PRD): Yātrika
+Version: 2.0 (Live Data & Agentic MVP)
+Author: Raghu Bhat
+---------------------
+1. Overview
+1.1. Vision
+To create the most intuitive, insightful, and visually stunning travel planning experience, transforming the overwhelming task of trip planning into a delightful, data-driven conversation.
+1.2. Mission (MVP)
+Launch a public-facing web application that acts as a personal AI travel strategist. It will guide users from a vague idea (or an inspirational photo) to a concrete, personalized plan enriched with live, real-time data on weather, traffic, and crowd levels to provide uniquely actionable insights that save time, money, and stress.
+1.3. Core Problem
+Travel planning is fragmented and overwhelming. Users jump between blogs for inspiration, map services for logistics, weather apps for packing, and booking sites for execution. They lack a single, intelligent source that synthesizes this information into a cohesive, optimized plan.
+1.4. Target Audience (Initial Focus)
+The Overwhelmed Planner (Primary): 18-35 year olds, tech-savvy, from solo travelers to couples. They are excited about travel but paralyzed by infinite choices and value authentic, optimized experiences.
+The Vague Dreamer (Secondary): Users who have a desire to travel but no concrete idea of where or when. They need inspiration backed by practical, real-world data.
+2. Core User Experience & Flow
+The application is a stateful, single-page application centered around a conversational interface.
+Greeting & Multimodal Input: The user is greeted with a beautiful, minimalist UI. A single prompt invites interaction: "What kind of journey are you dreaming of? You can type, or show me a photo for inspiration." A clear file upload option is present.
+Initial Triage: The user's input (text or image) is sent to the backend. The AI analyzes the input to infer the desired "vibe," potential location, or other initial parameters.
+Stateful Clarification Graph (LangGraph): The backend initiates a LangGraph state machine. This graph's purpose is to systematically achieve a "plan-ready" state. It moves through a clarification loop, asking one simple, multiple-choice question at a time to fill missing slots in the user's profile (e.g., traveler type, budget, interests).
+Tool-Powered Itinerary Building: Once the destination is set, the graph transitions to the ItineraryBuilder node. This node uses Gemini's Tool Calling capability to access a suite of real-world data tools.
+AI Reasoning Example: Gemini generates a draft activity: "Visit Amer Fort." It then internally reasons, "I need to optimize the timing for this visit. I will check the weather and crowd levels."
+Function Call Execution: The AI makes a function call like get_local_conditions(place="Amer Fort, Jaipur").
+Data Synthesis: The backend executes the function, calling the necessary external APIs. The data is returned to Gemini, which synthesizes it into a human-readable insight: "For Amer Fort, the weather will be sunny. Heads up: it gets very crowded between 10 AM and 1 PM. I suggest going right at opening for the best experience."
+Saving & Authentication: The user can save their generated, data-enriched itinerary by entering their email. A magic link is sent for secure, passwordless login/signup. The plan is persisted to their account.
+3. Key Features (MVP)
+Feature ID	Feature	Description & User Value
+F-01	Stateful AI Core (LangGraph)	A robust backend state machine that manages the entire conversational flow, making the AI more predictable, reliable, and capable of handling complex, multi-step planning sessions.
+F-02	Multimodal Input (Vision)	Users can upload an image for travel inspiration, allowing for a more intuitive and visual starting point. The AI can identify locations or infer the desired "vibe" from the photo.
+F-03	External Tool Calling	The AI can access and use real-world, live data through a suite of external tools, providing dynamic and actionable advice that goes far beyond static information.
+F-04	Live Weather Tool (get_weather)	Provides current weather and a multi-day forecast for the destination, helping with packing and daily activity planning.
+F-05	Popular Times Tool (get_popular_times)	Gives insights into how busy a location (e.g., museum, cafe, landmark) is at different hours, allowing users to strategically avoid crowds.
+F-06	Real-Time Traffic Tool (get_drive_plan)	For self-drive plans, provides an estimated drive time based on current or predicted traffic, enabling better time management.
+F-07	Magic Link Authentication	Secure, passwordless login via email. Reduces friction for user registration and provides a seamless way to save and retrieve itineraries.
+F-08	Itinerary Persistence	Saved itineraries are stored in a database, linked to a user's account, allowing them to access their plans from any device.
+4. Technical Specifications & Architecture
+Frontend: Vite, React, TypeScript, TailwindCSS with shadcn/ui, Zustand (client-side state), React Router (routing), Framer Motion (UI animations), React Icons.
+Backend: Node.js with Express.
+Orchestration: LangChain.js (for building tools/chains) and LangGraph.js (for the state machine).
+Tool Implementation: Backend functions (get_weather, etc.) that call external APIs and are wrapped as DynamicTool objects for LangChain.
+AI Model: Gemini 1.5 Pro/Flash API (via Google AI Studio).
+External APIs & Zero-Cost Strategy:
+Google Maps Platform: Provides a $200/month free credit. Used for the Directions API (traffic). Requires a billing account on file.
+OpenWeatherMap API: "Free" plan offers 1,000 API calls/day. Used for the weather tool.
+Popular Times Scraper: Use a library like popular-times (npm) as a zero-cost, gray-area solution for crowd data.
+Database & Auth: Supabase (Free Tier) for Postgres database and Magic Link Authentication.
+Hosting:
+Frontend: Vercel or Netlify (Free Tier).
+Backend: Vercel Serverless Functions or Render.com (Free Tier).
+5. Security (Non-Negotiable)
+API Key Sequestration: All API keys (Gemini, Google Maps, OpenWeatherMap) will be stored as environment variables on the backend server only. They will never be exposed to the frontend.
+Backend as Secure Gateway: The frontend will only ever call our own backend API endpoints. The backend orchestrates all external API calls.
+Rate Limiting: express-rate-limit will be implemented on the backend to protect all API quotas (Gemini, Google, OpenWeatherMap) from abuse.
+Input Validation: Zod will be used on the backend to validate all incoming data from the frontend before processing.
+Secure Dependencies & Headers: Regular use of npm audit and the Helmet middleware for Express are mandatory.
+Cost Control: Budget alerts must be configured in the Google Cloud account to prevent accidental charges.
+6. UI/UX Principles
+Conversational First: The primary interface is a chat. The UI must feel fluid and natural.
+Visually Stunning & Calm: A minimalist aesthetic, beautiful typography, a calm color palette, and high-quality visuals. The UI must be an absolute beauty, free of clutter.
+Data-Infused Design: Live data should be integrated elegantly into components—a weather icon next to a day's plan, a mini bar chart for crowd levels—not just listed as text.
+Delightful Micro-interactions: Purposeful animations via Framer Motion on all interactive elements to make the app feel responsive and alive.
+System State Transparency: Clear visual indicators for loading ("AI is thinking..."), empty, and error states must be designed for all data-fetching components.
+Full Accessibility: Adherence to WCAG standards through the use of accessible component libraries (shadcn/ui), proper color contrast, and keyboard navigability.
+7. Success Metrics (MVP)
+Activation Rate: % of new users who complete the clarification loop and generate at least one itinerary.
+Engagement Rate: % of users who interact with the tool-calling features (e.g., get a weather forecast, check crowd levels).
+Retention Rate: % of users who save an itinerary (create an account) and return to the app within 7 days.
+API Usage: Monitor API call volume to ensure we stay within free tier limits.
+8. Future Phases (Post-MVP)
+Phase 2 (Logistics & Monetization): Integrate real booking capabilities (flights, hotels) through affiliate partnerships. Introduce a "Pro" tier for advanced features like complex multi-city planning and budget tracking.
+Phase 3 (Community & Network Effects): Allow users to share itineraries, add comments/tips, and upvote local gems, creating a proprietary data layer that enhances the AI's recommendations.
+
+
+
+** VERY IMPORTANT **
+1. Always use shadcn components, if available first. if not available, create custom components.
+2. Do not use emojis. I hate emojis.
+
+Of course. Understood. The context of your current package.json setup is noted. The following directives will serve as the architectural blueprint for the project, outlining the standards and required libraries (like Helmet, Zod, LangChain) that we will install and implement as we build.
+
+Here is the complete, unified set of "Yatrika Prime Directives" in a clean .txt format, with nothing omitted.
+
+**Yatrika Prime Directives: AI Coding Guidelines v3.0**
+
+This document outlines the mandatory coding rules, patterns, and architectural principles for the "Yatrika" project. All code, whether human-written or AI-generated, must strictly adhere to these directives.
+
+---
+**Directive 1: Security is Non-Negotiable**
+---
+
+1.1. **Zero Frontend Secrets:** No API keys, secret tokens, or sensitive configuration variables shall ever exist in the frontend codebase. All secrets must be loaded exclusively on the backend via environment variables (`process.env`).
+
+1.2. **Backend as a Secure Gateway:** The frontend application is forbidden from making direct API calls to any third-party service (e.g., Gemini, Google Maps). All external communication must be proxied through our own Express backend.
+
+1.3. **Rigorous Input Validation:** Every backend endpoint that receives data from the client MUST validate the request body, params, and query. This is a mandatory step to prevent injection attacks and malformed data.
+    - **Implementation:** Use the **Zod** library for schema definition and validation. Reject any request that does not conform to the expected schema with a `400 Bad Request` status.
+
+1.4. **Secure HTTP Headers:** The backend must set security-hardening HTTP headers to mitigate common web vulnerabilities like XSS and clickjacking.
+    - **Implementation:** The **Helmet** middleware for Express is mandatory and must be used as one of the first middleware functions in the main Express application file.
+
+1.5. **Cross-Site Scripting (XSS) Prevention:** Rely on React's default JSX encoding for rendering text content. The `dangerouslySetInnerHTML` prop is forbidden unless the content has been rigorously sanitized on the server-side first.
+
+1.6. **Dependency Auditing:** Regularly audit project dependencies for known vulnerabilities using `npm audit fix` or `pnpm audit`. High-severity vulnerabilities must be addressed before they are merged into the main branch.
+
+
+---
+**Directive 2: Error Handling Must Be Elegant and Complete**
+---
+
+2.1. **Comprehensive Try/Catch:** All asynchronous operations that can fail (API calls, database interactions) on both the frontend and backend must be wrapped in `try...catch` blocks.
+
+2.2. **No Swallowed Errors:** A `catch` block must not be empty. It must, at a minimum, log the detailed error for debugging (`console.error`) and then update the application state to trigger a user-friendly, non-technical error message.
+
+2.3. **React Error Boundaries:** Major UI sections must be wrapped in a React Error Boundary component to prevent a crash in one part of the UI from taking down the entire application.
+
+2.4. **Graceful UI Feedback:** A user must never see a broken UI or a raw error message. Implement specific UI components for different error states (e.g., "Something went wrong," "You appear to be offline," "Our servers are busy").
+
+
+---
+**Directive 3: Resource Management and Performance**
+---
+
+3.1. **Prevention of Infinite Loops:** Every `useEffect` hook must have a correctly specified dependency array. State updates within a `useEffect` that could trigger the same effect must be guarded by conditional logic to ensure a terminating condition.
+
+3.2. **Controlled Asynchronous Operations:** Implement request cancellation for API calls made from within `useEffect` using `AbortController` to prevent state updates on unmounted components. Use debouncing for user inputs that trigger expensive operations.
+
+3.3. **Resource Cleanup:** All subscriptions, timers (`setTimeout`), or event listeners established within a component must be explicitly torn down when the component unmounts using the return function from `useEffect`.
+
+
+---
+**Directive 4: Backend & AI Orchestration**
+---
+
+4.1. **Express Server Architecture:**
+    - **Modular Structure:** Use a structured approach with separate directories for `routes`, `controllers`, and `services`.
+    - **Async Error Handling:** All async route handlers and middleware must be wrapped in a utility (e.g., `express-async-handler`) to ensure errors are properly passed to the Express error handling middleware.
+    - **Environment Variables:** Use the `dotenv` library to manage environment variables for local development.
+    - **Standard Middleware:** `express.json()`, `cors`, and `helmet()` are mandatory.
+
+4.2. **LangChain & LangGraph Architecture:**
+    - **Modularity:** Build small, reusable `Runnable` chains rather than one monolithic chain.
+    - **Tool Design:** Tools must be single-purpose, well-documented, and use Zod for input schema validation. Tools must handle their own internal errors.
+    - **State Schema (LangGraph):** The state object for a graph must have a strictly defined schema using a TypeScript `interface` or `type`.
+    - **Prompt Management:** Use `PromptTemplate`. Avoid hardcoding complex prompts as strings within the code; consider separate text files.
+    - **Streaming First:** Default to streaming responses for all conversational AI interactions using `Runnable.stream()` methods for a better UX.
+    - **Observability:** Use `langchain.debug = true` during development to trace and debug agentic chains.
+
+
+---
+**Directive 5: Frontend Code Quality & Best Practices**
+---
+
+5.1. **Language & Framework Standards:**
+    - **Language:** All code must be written in TypeScript.
+    - **Framework:** React v19. **Class components are forbidden.** The project will exclusively use modern Functional Components and Hooks.
+    - **Styling:** Tailwind CSS is the only styling method. Avoid inline styles or separate CSS files unless otherwise specified by user.
+    - **UI Components:** shadcn/ui is the primary component library. Import from the `@/components/ui/*` alias.
+    - **Icons:** lucide-react and react-icons is the standard icon library.
+    - **Animation:** Use Framer Motion for complex animations and Tailwind utilities for simple transitions.
+
+5.2. **Code Structure & Formatting:**
+    - **Component Definition:** Use `const ComponentName = () => {}` arrow function syntax.
+    - **Props:** Define component props using TypeScript `interface` or `type`.
+    - **File Naming:** Use `PascalCase` for all component files (e.g., `UserInputBar.tsx`).
+    - **Imports:** Organize imports into groups: 1) React, 2) external libraries, 3) internal modules.
+    - **Self-Closing Tags:** Use self-closing tags for components with no children (e.g., `<Logo />`).
+    - **Remove unused variables.
+
+5.3. **State Management:**
+    - **Global State:** Zustand. Store definition in `src/store/`.
+    - **Local State:** React's built-in `useState` and `useReducer` hooks.
+    - **Server State:** Plan to use TanStack Query (React Query) in the future for data fetching, caching, and mutation.
+
+5.4. **TypeScript Best Practices:**
+    - **No `any`:** The `any` type is forbidden. Define specific `interface` or `type` for all data structures (`Message`, `UserProfile`, `Itinerary`).
+    - **Readonly Props:** If a component prop should not be mutated, type it as `readonly`.
+    - **Union Types:** Use string literal union types (e.g., `type Sender = 'user' | 'ai'`) instead of enums.
+
+5.5. **Accessibility (a11y):**
+    - All interactive elements must be accessible via keyboard.
+    - Use semantic HTML5 elements (`<nav>`, `<main>`, `<header>`, `<button>`).
+    - All images must have `alt` props. All form elements must have associated `<label>`s.
+***************
+
+1. Color Palette (Calm & Futuristic Dark Theme)
+Primary Background: Slate 950 (#020617) - A very dark, almost black, but with a hint of cool blue. It's less harsh than pure black.
+Secondary Background (Cards/Modals): Slate 900 (#0f172a) - A slightly lighter dark blue-gray to create depth.
+Borders & Dividers: Slate 800 (#1e293b) - Subtle lines that define structure without being distracting.
+Primary Text: Slate 200 (#e2e8f0) - A soft, off-white that's easy on the eyes.
+Secondary Text (Subtitles/Metadata): Slate 400 (#94a3b8) - Muted gray for less important information.
+Accent / Brand Color: Electric Indigo (#6366f1 or indigo-500 in Tailwind) - A vibrant yet elegant purple-blue. Used for primary buttons, active states, links, and key highlights.
+Success/Confirmation: Emerald 500 (#10b981) - A bright, positive green.
+Warning/Error: Rose 500 (#f43f5e) - A clear but not overly aggressive red.
+2. Typography (Clean & Modern)
+Primary Font: Inter (or Satoshi) - A highly readable, modern sans-serif. It's clean, versatile, and available on Google Fonts.
+Headings (h1, h2): Font: Inter, Weight: 700 (Bold), Color: Slate 50 (#f8fafc).
+Body Text: Font: Inter, Weight: 400 (Regular), Color: Slate 200.
+UI Labels / Buttons: Font: Inter, Weight: 500 (Medium), Color: Primary Text or Accent.
+3. Spacing & Layout
+Core Principle: Generous whitespace. The UI should feel uncluttered and breathable.
+Grid System: Use a standard 8-point grid system. All padding, margins, and component sizes should be multiples of 8px (e.g., 8, 16, 24, 32, 40px). This creates visual harmony.
+Layout: A single, centered content column for the main conversation, with a max-width of around 800px to ensure readability on larger screens.
+4. Core Components (shadcn/ui inspired)
+Buttons:
+Primary: Solid Accent color background, white text. Subtle shadow and scales up slightly on hover.
+Secondary: Slate 800 background, Primary Text color. Accent color border on hover.
+Ghost/Icon: No background, just an icon or text in Secondary Text color, brightening to Primary Text on hover.
+Cards: Secondary Background color, rounded corners (rounded-xl), and a subtle Slate 800 border.
+Input Fields: Secondary Background color, Slate 800 border. On focus, the border glows with the Accent color.
+Icons: Lucide Icons (lucide-react) - A beautiful, modern, and comprehensive set that integrates perfectly with shadcn.

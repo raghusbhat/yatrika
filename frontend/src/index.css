@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@layer base {
+  * {
+    @apply border-slate-800;
+  }
+  body {
+    @apply bg-slate-950 text-slate-200 font-sans;
+  }
+}
+
+@layer utilities {
+  .animate-glow-gradient {
+    box-shadow: 0 0 0 4px #6366f1, 0 0 16px 4px #818cf8, 0 0 32px 8px #a5b4fc;
+    transition: box-shadow 0.3s;
+    animation: glow-gradient 1.2s linear infinite alternate;
+  }
+}
+
+@keyframes glow-gradient {
+  0% {
+    box-shadow: 0 0 0 4px #6366f1, 0 0 16px 4px #818cf8, 0 0 32px 8px #a5b4fc;
+  }
+  100% {
+    box-shadow: 0 0 0 6px #818cf8, 0 0 24px 8px #6366f1, 0 0 40px 12px #818cf8;
+  }
+}
+
+:root {
+  --font-sans: "Inter", sans-serif;
+}
