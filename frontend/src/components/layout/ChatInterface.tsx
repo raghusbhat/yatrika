@@ -1,8 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Send, Image as ImageIcon } from "lucide-react";
 import { clarify } from "@/api/clarify";
+import ChatInputBar from "./ChatInputBar.tsx";
 
 const PLACEHOLDER_EXAMPLES = [
   "a solo bike trip to Ladakh",
@@ -34,7 +32,15 @@ const initialClarificationState: ClarificationState = {
   isPlanReady: false,
 };
 
-const ChatInterface: React.FC = () => {
+interface ChatInterfaceProps {
+  sidebarCollapsed: boolean;
+  sidebarWidth: number;
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({
+  sidebarCollapsed,
+  sidebarWidth,
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
   const [clarificationState, setClarificationState] =
@@ -117,87 +123,66 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  // Responsive max width for chat area and input bar
+  const maxWidth = Math.min(900, window.innerWidth - sidebarWidth - 32); // 900px or available space
+
   return (
-    <main className="pt-16 min-h-screen bg-background flex flex-col">
-      <section className="flex-1 flex flex-col items-center justify-center w-full">
-        <div className="relative flex flex-col w-full max-w-content h-[80vh] bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden">
+    <main className="min-h-screen bg-slate-950 flex flex-col">
+      <section className="flex-1 flex flex-col w-full h-full items-center justify-center">
+        <div className="relative flex flex-col w-full h-full max-w-full py-0 items-center justify-center">
           {/* Chat messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`w-full flex ${
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
+          <div className="flex-1 flex flex-col items-center overflow-y-auto pt-8 pb-32 mb-8 space-y-4 w-full">
+            <div
+              className="w-full flex flex-col gap-6 mx-auto"
+              style={{ maxWidth }}
+            >
+              {messages.map((msg, idx) => (
                 <div
-                  className={`px-4 py-3 rounded-xl max-w-[75%] text-base font-sans whitespace-pre-line ${
-                    msg.role === "user"
-                      ? "bg-accent text-white rounded-br-sm"
-                      : msg.role === "assistant"
-                      ? "bg-slate-800 text-slate-200 rounded-bl-sm"
-                      : "bg-transparent text-slate-400 italic"
+                  key={idx}
+                  className={`w-full flex ${
+                    msg.role === "user" ? "justify-end" : "justify-center"
                   }`}
                 >
-                  {msg.content}
+                  <div
+                    className={`px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
+                      ${
+                        msg.role === "user"
+                          ? "bg-indigo-500 text-white rounded-br-md"
+                          : "bg-slate-800 text-slate-100 rounded-bl-md border border-slate-700"
+                      }
+                    `}
+                  >
+                    {msg.content}
+                  </div>
                 </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="w-full flex justify-start">
-                <div className="px-4 py-3 rounded-xl max-w-[75%] text-base font-sans bg-slate-800 text-slate-200 rounded-bl-sm opacity-70">
-                  ...
+              ))}
+              {loading && (
+                <div className="w-full flex justify-center">
+                  <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-slate-800 text-slate-200 rounded-bl-md opacity-70 shadow-md mx-0">
+                    ...
+                  </div>
                 </div>
-              </div>
-            )}
-            {error && (
-              <div className="w-full flex justify-start">
-                <div className="px-4 py-3 rounded-xl max-w-[75%] text-base font-sans bg-rose-900 text-rose-200 rounded-bl-sm border border-rose-500">
-                  {error}
+              )}
+              {error && (
+                <div className="w-full flex justify-center">
+                  <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-rose-900 text-rose-200 rounded-bl-md border border-rose-500 shadow-md mx-0">
+                    {error}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-          {/* Input bar */}
-          <form
-            onSubmit={handleSubmit}
-            className="absolute bottom-0 left-0 w-full bg-slate-900/95 border-t border-slate-800 px-4 py-3 flex items-center gap-2"
-          >
-            <Button
-              type="button"
-              className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 focus:outline-none"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Upload image"
-            >
-              <ImageIcon className="w-5 h-5" />
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              tabIndex={-1}
-            />
-            <Input
-              type="text"
-              placeholder={displayed || "Type your message..."}
-              className="flex-1"
-              autoComplete="off"
-              aria-label="Chat message"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              disabled={loading}
-            />
-            <Button
-              type="submit"
-              variant="default"
-              className="ml-2 px-3 h-10"
-              disabled={loading}
-            >
-              <Send className="w-5 h-5 mr-1" />
-              Send
-            </Button>
-          </form>
+          {/* Input bar - floating, fixed at bottom, not overlapping sidebar */}
+          <ChatInputBar
+            inputValue={inputValue}
+            setInputValue={setInputValue}
+            loading={loading}
+            handleSubmit={handleSubmit}
+            fileInputRef={fileInputRef}
+            displayed={displayed}
+            sidebarWidth={sidebarWidth}
+            maxWidth={maxWidth}
+          />
         </div>
       </section>
     </main>

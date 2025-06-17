@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const itineraries = [
   { title: "Weekend in Barcelona", subtitle: "2 days ago" },
@@ -20,40 +21,49 @@ const itineraries = [
   { title: "New York City Break", subtitle: "3 weeks ago" },
 ];
 
-const COLLAPSED_WIDTH = "w-18"; // 72px
-const EXPANDED_WIDTH = "w-72"; // 288px
+const COLLAPSED_WIDTH = 72; // px
+const EXPANDED_WIDTH = 288; // px
 
-const Sidebar: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(false);
+interface SidebarProps {
+  collapsed: boolean;
+  setCollapsed: (c: boolean) => void;
+}
 
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
   return (
-    <aside
-      className={`fixed top-0 left-0 h-full z-40 bg-slate-950 border-r border-slate-900/50 flex flex-col justify-between transition-all duration-200 ${
-        collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH
-      }`}
+    <motion.aside
+      animate={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
+      transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+      className="h-full z-40 bg-slate-950 border-r border-slate-900/50 flex flex-col justify-between fixed top-0 left-0"
+      style={{ minWidth: COLLAPSED_WIDTH, maxWidth: EXPANDED_WIDTH }}
     >
       {/* Top: Logo, Collapse Button, and New Itinerary */}
       <div>
-        <div
-          className={`flex items-center py-4 px-2 mb-2 border-b border-slate-900 justify-between relative`}
-        >
+        <div className="flex items-center py-4 px-2 mb-2 border-b border-slate-900 justify-between relative">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded flex items-center justify-center">
               <img src="../../../public/logo.svg" alt="logo" className="ml-7" />
             </div>
-            {!collapsed && (
-              <span className="text-2xl font-bold text-slate-400 shadow-2xl mx-4">
-                Yātrika
-              </span>
-            )}
+            <AnimatePresence initial={false}>
+              {!collapsed && (
+                <motion.span
+                  key="yatrika-text"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.18, ease: "easeInOut" }}
+                  className="text-2xl font-bold text-slate-400 shadow-2xl mx-4"
+                >
+                  Yātrika
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className={`absolute -right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary p-0 h-8 w-8 flex items-center justify-center ${
-              collapsed ? "" : "relative  translate-y-0 "
-            }`}
-            onClick={() => setCollapsed((c) => !c)}
+            className="absolute -right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary p-0 h-8 w-8 flex items-center justify-center"
+            onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
@@ -73,22 +83,53 @@ const Sidebar: React.FC = () => {
               collapsed ? "" : "w-full gap-2 px-2"
             }`}
           >
-            {!collapsed && <span className="text-sm">New Itinerary</span>}
+            <AnimatePresence initial={false}>
+              {!collapsed && (
+                <motion.span
+                  key="new-itinerary-text"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.18, ease: "easeInOut" }}
+                  className="text-sm"
+                >
+                  New Itinerary
+                </motion.span>
+              )}
+            </AnimatePresence>
             <Plus className="w-4 h-4" />
           </Button>
-          {!collapsed && (
-            <Input
-              type="text"
-              placeholder="Search conversations..."
-              className="bg-slate-900 border-none placeholder:text-center text-slate-200 placeholder-slate-400 rounded-lg px-3 my-2 py-4 text-xs focus:ring focus:ring-indigo-500/50"
-            />
+          {/* Always reserve space for search bar */}
+          {collapsed ? (
+            <div style={{ height: 48, margin: "8px 0" }} />
+          ) : (
+            <motion.div
+              key="search-conv"
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.18, ease: "easeInOut" }}
+            >
+              <Input
+                type="text"
+                placeholder="Search conversations..."
+                className="bg-slate-900 border-none placeholder:text-center text-slate-200 placeholder-slate-400 rounded-lg px-3 my-2 py-4 text-xs focus:ring focus:ring-indigo-500/50"
+              />
+            </motion.div>
           )}
         </div>
         <div className={`pt-3 pb-1 ${collapsed ? "px-1" : "px-4"}`}>
           {!collapsed && (
-            <div className="text-xs  text-slate-400 mb-4">
+            <motion.div
+              key="recent-itineraries"
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.18, ease: "easeInOut" }}
+              className="text-xs text-slate-400 mb-4"
+            >
               Recent Itineraries
-            </div>
+            </motion.div>
           )}
           <div className="flex flex-col gap-1">
             {itineraries.map((it, idx) => (
@@ -104,16 +145,25 @@ const Sidebar: React.FC = () => {
                 >
                   <MapPin className="w-4 h-4 text-slate-400" />
                 </div>
-                {!collapsed && (
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white leading-tight">
-                      {it.title}
-                    </span>
-                    <span className="text-[10px] text-slate-400 leading-tight">
-                      {it.subtitle}
-                    </span>
-                  </div>
-                )}
+                <AnimatePresence initial={false}>
+                  {!collapsed && (
+                    <motion.div
+                      key={`itinerary-title-${idx}`}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -8 }}
+                      transition={{ duration: 0.18, ease: "easeInOut" }}
+                      className="flex flex-col"
+                    >
+                      <span className="text-xs font-bold text-white leading-tight">
+                        {it.title}
+                      </span>
+                      <span className="text-[10px] text-slate-400 leading-tight">
+                        {it.subtitle}
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
@@ -167,7 +217,7 @@ const Sidebar: React.FC = () => {
           )}
         </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 };
 
@@ -182,7 +232,20 @@ const SidebarNavItem: React.FC<{
     }`}
   >
     {icon}
-    {!collapsed && <span className="text-xs font-semibold">{label}</span>}
+    <AnimatePresence initial={false}>
+      {!collapsed && (
+        <motion.span
+          key={label}
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -8 }}
+          transition={{ duration: 0.18, ease: "easeInOut" }}
+          className="text-xs font-semibold"
+        >
+          {label}
+        </motion.span>
+      )}
+    </AnimatePresence>
   </div>
 );
 
