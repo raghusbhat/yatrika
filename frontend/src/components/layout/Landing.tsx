@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Search, Mic, Image as ImageIcon, X as XIcon } from "lucide-react";
+import {
+  Search,
+  Mic,
+  Image as ImageIcon,
+  X as XIcon,
+  Send,
+} from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { clarify } from "@/api/clarify";
 
 const PLACEHOLDER_EXAMPLES = [
   "A 10-day Europe trip covering Paris and Amsterdam under 1.5 Lakhs INR",
@@ -16,6 +23,25 @@ const DELETING_SPEED = 30;
 const PAUSE_AFTER_TYPING = 1200;
 const PAUSE_AFTER_DELETING = 400;
 
+// Define ClarificationState locally
+interface ClarificationState {
+  destination?: string;
+  travelerType?: string;
+  budget?: string;
+  interests?: string[];
+  inputHistory: string[];
+  isPlanReady: boolean;
+}
+
+const initialClarificationState: ClarificationState = {
+  destination: "",
+  travelerType: "",
+  budget: "",
+  interests: [],
+  inputHistory: [],
+  isPlanReady: false,
+};
+
 const Landing: React.FC = () => {
   // Typing animation state
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
@@ -24,6 +50,9 @@ const Landing: React.FC = () => {
   const [images, setImages] = useState<{ file: File; url: string }[]>([]);
   const [searchValue, setSearchValue] = useState("");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [clarificationState, setClarificationState] =
+    useState<ClarificationState>(initialClarificationState);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const current = PLACEHOLDER_EXAMPLES[placeholderIdx];
@@ -97,6 +126,29 @@ const Landing: React.FC = () => {
     setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const handleSend = async () => {
+    if (!searchValue.trim() || loading) return;
+    setLoading(true);
+    console.log("[Landing] Sending clarify request:", {
+      input: searchValue.trim(),
+      clarificationState,
+    });
+    try {
+      const res = await clarify(searchValue.trim(), clarificationState);
+      console.log("[Landing] Clarify response:", res);
+      setClarificationState(res.updatedState);
+      toast.success(res.nextPrompt || "Sent!");
+      setSearchValue("");
+    } catch (err) {
+      let msg = "Sorry, something went wrong.";
+      if (err instanceof Error && err.message) msg = err.message;
+      console.error("[Landing] Clarify error:", err);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="flex flex-col min-h-screen justify-center items-center bg-slate-950 mx-4">
       {/* Heading and subtitle */}
@@ -150,9 +202,11 @@ const Landing: React.FC = () => {
             ))}
           </div>
         )}
-        <div className="w-full flex gap-2 min-h-[2.5rem] items-center">
+        {/* Input area: two-row structure */}
+        <div className="w-full flex flex-col gap-1">
+          {/* Row 1: Textarea */}
           <textarea
-            className="flex-1 bg-transparent outline-none border-none text-slate-200 placeholder-slate-500 text-base font-sans max-h-32 resize-none px-1 transition-all duration-200 overflow-auto"
+            className="w-full bg-transparent outline-none border-none text-slate-200 placeholder-slate-500 text-base font-sans max-h-32 min-h-[2.5rem] resize-none px-1 transition-all duration-200 overflow-auto"
             style={{ fontFamily: "Inter, sans-serif" }}
             placeholder={displayed || "Type your travel dream..."}
             aria-label="Travel search"
@@ -188,45 +242,60 @@ const Landing: React.FC = () => {
             }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
-              target.style.height = "2.5rem";
-              if (!target.value) {
-                target.style.height = "2.5rem";
+              target.style.height = "auto";
+              const minHeight = 40; // ~2.5rem
+              if (target.scrollHeight > minHeight) {
+                target.style.height = target.scrollHeight + "px";
               } else {
-                target.style.height = Math.min(target.scrollHeight, 128) + "px";
+                target.style.height = minHeight + "px";
               }
             }}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.ctrlKey &&
+                !e.metaKey
+              ) {
+                e.preventDefault();
+                handleSend();
+              }
+              // Otherwise, allow default (including Shift+Enter for newline)
+            }}
+            disabled={loading}
           />
-        </div>
-        {/* Divider line between input and icons */}
-        <div className="w-full border-t border-slate-800" />
-        {/* Icon row below input */}
-        <div className="w-full flex flex-row items-center justify-end gap-2 mt-0">
-          <Button
-            type="button"
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-950 text-indigo-400 hover:text-indigo-200 focus:outline-none"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Upload image"
-          >
-            <Mic className="w-4 h-4" />
-          </Button>
-
-          <Button
-            type="button"
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-950 text-indigo-400 hover:text-indigo-200 focus:outline-none"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Upload image"
-          >
-            <ImageIcon className="w-4 h-4" />
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            tabIndex={-1}
-            onChange={handleImageUpload}
-            multiple
-          />
+          {/* Divider between textarea and buttons */}
+          <div className="w-full border-t border-slate-800 my-1" />
+          {/* Row 2: Icons left, send right */}
+          <div className="w-full flex flex-row items-center justify-between mt-1">
+            <div className="flex flex-row items-center gap-2">
+              <Button
+                type="button"
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-950 text-indigo-400 hover:text-indigo-200 focus:outline-none"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Mic"
+              >
+                <Mic className="w-4 h-4" />
+              </Button>
+              <Button
+                type="button"
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-950 text-indigo-400 hover:text-indigo-200 focus:outline-none"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Upload image"
+              >
+                <ImageIcon className="w-4 h-4" />
+              </Button>
+            </div>
+            <Button
+              type="button"
+              className="p-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white focus:outline-none"
+              onClick={handleSend}
+              disabled={loading}
+              aria-label="Send"
+            >
+              <Send className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </div>
       {/* Footer */}

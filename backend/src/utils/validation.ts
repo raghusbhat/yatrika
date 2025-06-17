@@ -7,7 +7,6 @@ export const ClarifyInputSchema = z.object({
 
 export type ClarifyInput = z.infer<typeof ClarifyInputSchema>;
 
-// Clarification state schema for LangGraph
 export const ClarificationStateSchema = z.object({
   destination: z.string().optional(),
   travelerType: z.string().optional(),

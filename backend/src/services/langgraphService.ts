@@ -2,11 +2,27 @@ import {
   ClarificationState,
   ClarificationStateSchema,
 } from "../utils/validation";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import dotenv from "dotenv";
+dotenv.config();
 
-// Mock LLM function to simulate LangChain prompt (replace with real LLM later)
-const mockLLM = async (prompt: string): Promise<string> => {
-  // For demo, just echo the prompt
-  return `MOCK RESPONSE: ${prompt}`;
+const geminiLLM = async (prompt: string): Promise<string> => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set in environment");
+  console.log("[geminiLLM] Sending prompt to Gemini:", prompt);
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+  try {
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    console.log("[geminiLLM] Raw Gemini response:", response);
+    const text = response.text();
+    console.log("[geminiLLM] Gemini response text:", text);
+    return text;
+  } catch (err) {
+    console.error("[geminiLLM] Error from Gemini:", err);
+    throw err;
+  }
 };
 
 // Define the slots and their prompts
@@ -32,7 +48,9 @@ export const runClarificationGraph = async (
 ): Promise<{ nextPrompt?: string; updatedState: ClarificationState }> => {
   try {
     // Validate state shape
+    console.log("[langgraphService] Input:", input);
     const parsedState = ClarificationStateSchema.parse(state);
+    console.log("[langgraphService] Parsed state:", parsedState);
     // Add input to history
     const newHistory = [...parsedState.inputHistory, input];
     let updatedState: ClarificationState = {
@@ -40,23 +58,12 @@ export const runClarificationGraph = async (
       inputHistory: newHistory,
     };
 
-    // Find the first missing slot
-    const nextSlot = clarificationSlots.find(
-      (slot) => !updatedState[slot.key as SlotKey]
-    );
-
-    if (nextSlot) {
-      // Ask for the next missing slot
-      const nextPrompt = nextSlot.prompt;
-      return { nextPrompt, updatedState };
-    } else {
-      // All slots filled
-      updatedState = { ...updatedState, isPlanReady: true };
-      return { updatedState };
-    }
+    // Use Gemini for all prompts for now
+    const geminiResponse = await geminiLLM(input);
+    return { nextPrompt: geminiResponse, updatedState };
   } catch (err) {
     // Log and rethrow for controller to handle
-    console.error("LangGraph service error:", err);
+    console.error("[langgraphService] LangGraph service error:", err);
     throw new Error("Clarification state error.");
   }
 };

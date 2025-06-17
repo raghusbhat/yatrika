@@ -11,13 +11,17 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "express": "^5.1.0",
+    "@google/generative-ai": "^0.24.1",
     "@langchain/langgraph-sdk": "^0.0.84",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
+    "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
     "helmet": "^8.1.0",
     "langchain": "^0.3.28",
     "zod": "^3.25.64"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
   }
 }

@@ -1,7 +1,7 @@
 export interface ClarificationState {
-  destination?: string | null;
-  travelerType?: string | null;
-  budget?: string | null;
+  destination?: string;
+  travelerType?: string;
+  budget?: string;
   interests?: string[];
   inputHistory: string[];
   isPlanReady: boolean;

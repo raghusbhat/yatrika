@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Image as ImageIcon } from "lucide-react";
 import { clarify } from "@/api/clarify";
-import type { ClarificationState } from "@/api/clarify";
 
 const PLACEHOLDER_EXAMPLES = [
   "a solo bike trip to Ladakh",
@@ -16,10 +15,20 @@ const DELETING_SPEED = 30; // ms per character
 const PAUSE_AFTER_TYPING = 1200; // ms to pause after typing
 const PAUSE_AFTER_DELETING = 400; // ms to pause after deleting
 
+// Define ClarificationState locally
+interface ClarificationState {
+  destination?: string;
+  travelerType?: string;
+  budget?: string;
+  interests?: string[];
+  inputHistory: string[];
+  isPlanReady: boolean;
+}
+
 const initialClarificationState: ClarificationState = {
-  destination: null,
-  travelerType: null,
-  budget: null,
+  destination: "",
+  travelerType: "",
+  budget: "",
   interests: [],
   inputHistory: [],
   isPlanReady: false,
