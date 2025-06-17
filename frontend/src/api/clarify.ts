@@ -25,7 +25,12 @@ export async function clarify(input: string, state: ClarificationState) {
     return await res.json();
   } catch (err) {
     if (err instanceof Error) {
-      throw new Error(err.message || "Network or server error");
+      let msg = err.message;
+      if (msg === "Failed to fetch") {
+        msg =
+          "Could not connect to the server. Please check your connection or try again later.";
+      }
+      throw new Error(msg || "Network or server error");
     }
     throw new Error("Unknown error");
   }

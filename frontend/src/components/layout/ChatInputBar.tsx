@@ -1,6 +1,11 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Send, Image as ImageIcon, X as XIcon } from "lucide-react";
+import {
+  stripHtmlTags,
+  containsPromptInjection,
+  removeControlChars,
+} from "@/lib/utils";
 
 interface ChatInputBarProps {
   inputValue: string;
@@ -15,6 +20,7 @@ interface ChatInputBarProps {
 
 const MAX_TEXTAREA_HEIGHT = 120;
 const MAX_IMAGES = 4;
+const MAX_IMAGE_SIZE_MB = 5;
 
 const ChatInputBar: React.FC<ChatInputBarProps> = ({
   inputValue,
@@ -31,6 +37,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -51,22 +58,44 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
     };
   }, [images]);
 
+  // Handle text input change with validation (no HTML stripping, just remove control chars)
+  const onInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    let value = e.target.value;
+    value = removeControlChars(value);
+    if (containsPromptInjection(value)) {
+      setError("Input contains potentially unsafe prompt injection patterns.");
+      return;
+    }
+    setError(null);
+    setInputValue(value);
+  };
+
   // Keyboard handling: Enter to send, Shift+Enter for newline
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (!loading && inputValue.trim()) {
-        // @ts-ignore: parent will handle submit
-        handleSubmit(e);
+      if (!inputValue.trim() || loading) {
+        e.preventDefault();
+        return;
       }
+      e.preventDefault();
+      // @ts-ignore: parent will handle submit
+      handleSubmit(e);
     }
   };
 
-  // Add images (up to MAX_IMAGES)
+  // Add images (up to MAX_IMAGES) with validation
   const addImages = (files: FileList | File[]) => {
-    const fileArr = Array.from(files).filter((f) =>
-      f.type.startsWith("image/")
-    );
+    const fileArr = Array.from(files).filter((f) => {
+      if (!f.type.startsWith("image/")) {
+        setError("Only image files are allowed.");
+        return false;
+      }
+      if (f.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        setError(`Image size must be less than ${MAX_IMAGE_SIZE_MB}MB.`);
+        return false;
+      }
+      return true;
+    });
     if (!fileArr.length) return;
     setImages((prev) => {
       const next = [...prev, ...fileArr].slice(0, MAX_IMAGES);
@@ -110,6 +139,18 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
     setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // Remove focus border when loading is true
+  useEffect(() => {
+    if (loading && isFocused) setIsFocused(false);
+  }, [loading]);
+
+  // Refocus textarea after loading ends
+  useEffect(() => {
+    if (!loading && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [loading]);
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -125,12 +166,16 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
       <div
         className={`pointer-events-auto w-full bg-slate-900 shadow shadow-black border px-2 py-2 rounded-xl flex flex-col gap-1 transition-all duration-150
         ${
-          isFocused
+          isFocused && !loading
             ? "border-indigo-500 shadow-[0_4px_32px_rgba(80,80,180,0.10)]"
             : "border-slate-800 shadow-2xl"
         } mx-auto`}
         style={{ maxWidth }}
       >
+        {/* Error message */}
+        {error && (
+          <div className="text-xs text-rose-400 mb-1 px-2">{error}</div>
+        )}
         {/* Image chips above input */}
         {images.length > 0 && (
           <div className="flex gap-2 mb-1">
@@ -181,12 +226,12 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
             ref={textareaRef}
             rows={1}
             maxLength={1000}
-            placeholder={displayed || "Type your message..."}
+            placeholder={displayed || ""}
             className="flex-1 resize-none bg-slate-800 border-none text-slate-200 placeholder-slate-500 px-3 py-2 font-sans text-base leading-relaxed outline-none rounded-lg min-h-[44px] max-h-[120px] transition-all"
             autoComplete="off"
             aria-label="Chat message"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={onInputChange}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             onDrop={onDrop}
@@ -222,7 +267,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
             type="submit"
             size="icon"
             className="h-8 w-8 p-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow border border-indigo-700"
-            disabled={loading}
+            disabled={loading || !inputValue.trim()}
             aria-label="Send"
           >
             <Send className="w-4 h-4" />

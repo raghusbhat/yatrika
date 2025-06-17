@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { clarify } from "@/api/clarify";
 import ChatInputBar from "./ChatInputBar.tsx";
+import { RotateCcw } from "lucide-react";
 
 const PLACEHOLDER_EXAMPLES = [
   "a solo bike trip to Ladakh",
@@ -56,11 +57,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 
   // Typing animation state
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [displayed, setDisplayed] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [isNewChat, setIsNewChat] = useState(true);
 
   useEffect(() => {
     const current = PLACEHOLDER_EXAMPLES[placeholderIdx];
@@ -86,13 +90,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return () => clearTimeout(timeout);
   }, [displayed, isDeleting, placeholderIdx]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Auto-scroll to bottom when messages change
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading, error]);
+
+  const handleSubmit = async (e: React.FormEvent, retryMessage?: string) => {
     e.preventDefault();
-    if (!inputValue.trim() || loading) return;
+    if ((!inputValue.trim() && !retryMessage) || loading) return;
     setError(null);
-    const userMessage = inputValue.trim();
+    const userMessage = retryMessage || inputValue.trim();
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setInputValue("");
+    setLastUserMessage(userMessage); // Save last user message
+    setIsNewChat(false); // Mark chat as not new after first user message
     setLoading(true);
     try {
       const res = await clarify(userMessage, clarificationState);
@@ -112,12 +124,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       let msg = "Sorry, something went wrong.";
       if (err instanceof Error && err.message) msg = err.message;
       setError(msg);
-      setMessages((prev) =>
-        prev[prev.length - 1]?.role === "assistant" &&
-        prev[prev.length - 1]?.content === msg
-          ? prev
-          : [...prev, { role: "assistant", content: msg }]
-      );
     } finally {
       setLoading(false);
     }
@@ -134,21 +140,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="flex-1 flex flex-col items-center overflow-y-auto pt-8 pb-32 mb-8 space-y-4 w-full">
             <div
               className="w-full flex flex-col gap-6 mx-auto"
-              style={{ maxWidth }}
+              style={{ maxWidth, paddingBottom: 100 }}
             >
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
                   className={`w-full flex ${
-                    msg.role === "user" ? "justify-end" : "justify-center"
+                    msg.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
                   <div
-                    className={`px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
+                    className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
                       ${
                         msg.role === "user"
-                          ? "bg-indigo-500 text-white rounded-br-md"
-                          : "bg-slate-800 text-slate-100 rounded-bl-md border border-slate-700"
+                          ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
+                          : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
                       }
                     `}
                   >
@@ -158,18 +164,46 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               ))}
               {loading && (
                 <div className="w-full flex justify-center">
-                  <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-slate-800 text-slate-200 rounded-bl-md opacity-70 shadow-md mx-0">
-                    ...
+                  <div className="rounded-2xl max-w-[80%] flex justify-center items-center shadow-md mx-0">
+                    <div className="lds-roller text-indigo-400">
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                    </div>
                   </div>
                 </div>
               )}
               {error && (
-                <div className="w-full flex justify-center">
-                  <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-rose-900 text-rose-200 rounded-bl-md border border-rose-500 shadow-md mx-0">
+                <div className="w-full flex justify-start">
+                  <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-rose-900 text-rose-200 rounded-bl-xs border border-rose-500 shadow-md mx-0 flex items-center gap-2">
                     {error}
+                    {lastUserMessage && (
+                      <button
+                        type="button"
+                        aria-label="Retry"
+                        className="ml-2 text-rose-200 hover:text-white focus:outline-none"
+                        onClick={(e) => handleSubmit(e as any, lastUserMessage)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
+              <div ref={bottomRef} />
             </div>
           </div>
           {/* Input bar - floating, fixed at bottom, not overlapping sidebar */}
@@ -179,7 +213,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             loading={loading}
             handleSubmit={handleSubmit}
             fileInputRef={fileInputRef}
-            displayed={displayed}
+            displayed={isNewChat ? displayed : ""}
             sidebarWidth={sidebarWidth}
             maxWidth={maxWidth}
           />
