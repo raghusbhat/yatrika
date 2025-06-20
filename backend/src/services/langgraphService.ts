@@ -151,19 +151,21 @@ Your structured response:`
 );
 
 const multiSlotExtractionPrompt = `
-Extract the following details from the user's message if present:
-- Source city
-- Destination city
-- Travel dates or duration
-- Group type (solo, couple, family, friends)
-- Budget
-- Mode of transport (own car, rental car, taxi, train, bus, flight)
-- Car model (if driving)
-- Any other relevant travel preferences
+Extract the following details from the user's message if present.
+Return a JSON object with these exact keys:
+- source
+- destination
+- travelDates
+- duration
+- groupType
+- budget
+- modeOfTransport
+- carModel
+- tripTheme
+- interests
+If a field is not mentioned, set it to null.
 
 User message: "{user_input}"
-
-Return a JSON object with these fields. If a field is not mentioned, set it to null.
 `;
 
 export async function extractSlotsWithGemini(
