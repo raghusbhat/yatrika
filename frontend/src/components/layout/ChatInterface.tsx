@@ -44,9 +44,45 @@ const formSchema = z.object({
 });
 
 const PLACEHOLDER_EXAMPLES = [
-  "a solo bike trip to Ladakh",
-  "a cheap weekend getaway from Mumbai",
-  'show me a photo of a beach and say "take me here"',
+  "A budget road trip from Bangalore to Coorg under ₹5,000",
+  "A weekend escape under $300 from New York",
+  "A scenic drive through Bavaria with friends",
+  "A quiet onsen retreat near Mt. Fuji",
+  "A Eurostar weekend trip from London to Paris",
+  "A family beach holiday in Phuket under ฿20,000",
+  "A cultural city break in Paris for under €250",
+  "A road trip from Seoul to Busan with local food stops",
+  "A short escape to Niagara Falls from Toronto",
+  "A Carnival season trip through Rio de Janeiro",
+  "A temple and volcano tour in Bali",
+  "A snowy weekend in St. Petersburg",
+  "A historical tour from Cairo to Luxor",
+];
+
+const DESTINATION_PLACEHOLDER_EXAMPLES = [
+  "Goa, India",
+  "Munnar, Kerala, India",
+  "Kyoto, Japan",
+  "Takayama, Japan",
+  "Phuket, Thailand",
+  "Hoi An, Vietnam",
+  "Cappadocia, Turkey",
+  "Santorini, Greece",
+  "Meteora, Greece",
+  "Paris, France",
+  "Rome, Italy",
+  "Alberobello, Italy",
+  "Zurich, Switzerland",
+  "Reykjavik, Iceland",
+  "New York City, USA",
+  "Sedona, Arizona, USA",
+  "Banff National Park, Canada",
+  "Queenstown, New Zealand",
+  "Machu Picchu, Peru",
+  "Petra, Jordan",
+  "Cape Town, South Africa",
+  "Drakensberg, South Africa",
+  "Chefchaouen, Morocco",
 ];
 
 const TYPING_SPEED = 60; // ms per character
@@ -266,6 +302,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [inputFocused, setInputFocused] = useState(false);
   const [initialChip, setInitialChip] = useState<string | null>(null);
 
+  // Add state for destination placeholder animation
+  const [destinationPlaceholderIdx, setDestinationPlaceholderIdx] = useState(0);
+  const [destinationDisplayed, setDestinationDisplayed] = useState("");
+  const [destinationIsDeleting, setDestinationIsDeleting] = useState(false);
+  const [destinationInputFocused, setDestinationInputFocused] = useState(false);
+  const [destinationInputValue, setDestinationInputValue] = useState("");
+
+  const [inputFocusStates, setInputFocusStates] = useState<{
+    [key: string]: boolean;
+  }>({});
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -340,6 +387,54 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading, error]);
+
+  // Animate destination placeholder
+  useEffect(() => {
+    if (!showInitialSlots) return; // Only animate when slot questions are shown
+    const current = DESTINATION_PLACEHOLDER_EXAMPLES[destinationPlaceholderIdx];
+    let timeout: NodeJS.Timeout;
+    if (
+      !destinationIsDeleting &&
+      destinationDisplayed.length < current.length
+    ) {
+      timeout = setTimeout(
+        () =>
+          setDestinationDisplayed(
+            current.slice(0, destinationDisplayed.length + 1)
+          ),
+        TYPING_SPEED
+      );
+    } else if (
+      !destinationIsDeleting &&
+      destinationDisplayed.length === current.length
+    ) {
+      timeout = setTimeout(
+        () => setDestinationIsDeleting(true),
+        PAUSE_AFTER_TYPING
+      );
+    } else if (destinationIsDeleting && destinationDisplayed.length > 0) {
+      timeout = setTimeout(
+        () =>
+          setDestinationDisplayed(
+            current.slice(0, destinationDisplayed.length - 1)
+          ),
+        DELETING_SPEED
+      );
+    } else if (destinationIsDeleting && destinationDisplayed.length === 0) {
+      timeout = setTimeout(() => {
+        setDestinationIsDeleting(false);
+        setDestinationPlaceholderIdx(
+          (idx) => (idx + 1) % DESTINATION_PLACEHOLDER_EXAMPLES.length
+        );
+      }, PAUSE_AFTER_DELETING);
+    }
+    return () => clearTimeout(timeout);
+  }, [
+    destinationDisplayed,
+    destinationIsDeleting,
+    destinationPlaceholderIdx,
+    showInitialSlots,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent, retryMessage?: string) => {
     e.preventDefault();
@@ -538,9 +633,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <Input
                     type="text"
                     className="w-full px-4 py-3 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
-                    placeholder={
-                      inputFocused ? "" : "Or type your own journey..."
-                    }
+                    placeholder={inputFocused ? "" : displayed}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     disabled={loading}
@@ -742,61 +835,81 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 </div>
                               </div>
                             </div>
-                          ) : slot.type === "input" ? (
-                            <>
-                              <FormField
-                                control={form.control}
-                                name={slot.key as any}
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>{slot.label}</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        {...field}
-                                        placeholder={slot.placeholder}
-                                        className="w-full px-3 py-2 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
-                                        autoComplete="off"
-                                        disabled={
-                                          slot.key === "budget" &&
-                                          flexibleBudget
-                                        }
-                                      />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              {/* Flexible Budget Checkbox */}
-                              {slot.key === "budget" && (
-                                <div className="flex items-center gap-2 mt-2">
-                                  <FormField
-                                    control={form.control}
-                                    name="flexibleBudget"
-                                    render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center">
-                                        <FormControl>
-                                          <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={(checked) => {
-                                              field.onChange(checked);
-                                              if (checked) {
-                                                form.setValue("budget", "", {
-                                                  shouldValidate: true,
-                                                });
-                                              }
-                                            }}
-                                            className="mr-2"
-                                          />
-                                        </FormControl>
-                                        <FormLabel className="text-slate-300 text-sm font-normal cursor-pointer select-none">
-                                          My budget is flexible
-                                        </FormLabel>
-                                      </FormItem>
-                                    )}
-                                  />
-                                </div>
+                          ) : slot.key === "destination" ? (
+                            <FormField
+                              control={form.control}
+                              name="destination"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>{slot.label}</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      value={destinationInputValue}
+                                      onChange={(e) => {
+                                        setDestinationInputValue(
+                                          e.target.value
+                                        );
+                                        field.onChange(e);
+                                      }}
+                                      placeholder={
+                                        destinationInputFocused ||
+                                        destinationInputValue
+                                          ? ""
+                                          : destinationDisplayed
+                                      }
+                                      className="w-full px-3 py-2 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
+                                      autoComplete="off"
+                                      onFocus={() =>
+                                        setDestinationInputFocused(true)
+                                      }
+                                      onBlur={() =>
+                                        setDestinationInputFocused(false)
+                                      }
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
                               )}
-                            </>
+                            />
+                          ) : slot.type === "input" ? (
+                            <FormField
+                              control={form.control}
+                              name={slot.key as any}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>{slot.label}</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      placeholder={
+                                        inputFocusStates[slot.key]
+                                          ? ""
+                                          : slot.placeholder
+                                      }
+                                      className="w-full px-3 py-2 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
+                                      autoComplete="off"
+                                      disabled={
+                                        slot.key === "budget" && flexibleBudget
+                                      }
+                                      onFocus={() =>
+                                        setInputFocusStates((prev) => ({
+                                          ...prev,
+                                          [slot.key]: true,
+                                        }))
+                                      }
+                                      onBlur={() =>
+                                        setInputFocusStates((prev) => ({
+                                          ...prev,
+                                          [slot.key]: false,
+                                        }))
+                                      }
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                           ) : slot.type === "chips" ? (
                             <FormField
                               control={form.control}
@@ -931,6 +1044,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </div>
               </div>
               {/* Input bar - floating, fixed at bottom, not overlapping sidebar */}
+              <ChatInputBar
+                inputValue={inputValue}
+                setInputValue={setInputValue}
+                loading={loading}
+                handleSubmit={handleSubmit}
+                fileInputRef={fileInputRef}
+                displayed={displayed}
+                sidebarWidth={sidebarWidth}
+                maxWidth={maxWidth}
+              />
+            </>
+          )}
+
+          {/* Show chat history even when intent is rejected */}
+          {intentRejected && (
+            <>
+              <div className="flex-1 flex flex-col items-center overflow-y-auto pt-8 pb-32 mb-8 space-y-4 w-full">
+                <div
+                  className="w-full flex flex-col gap-6 mx-auto"
+                  style={{ maxWidth, paddingBottom: 100 }}
+                >
+                  {messages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`w-full flex ${
+                        msg.role === "user" ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      <div
+                        className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
+                          ${
+                            msg.role === "user"
+                              ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
+                              : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
+                          }
+                        `}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={bottomRef} />
+                </div>
+              </div>
               <ChatInputBar
                 inputValue={inputValue}
                 setInputValue={setInputValue}

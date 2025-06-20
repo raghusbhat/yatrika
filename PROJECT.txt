@@ -207,3 +207,44 @@ Ghost/Icon: No background, just an icon or text in Secondary Text color, brighte
 Cards: Secondary Background color, rounded corners (rounded-xl), and a subtle Slate 800 border.
 Input Fields: Secondary Background color, Slate 800 border. On focus, the border glows with the Accent color.
 Icons: Lucide Icons (lucide-react) - A beautiful, modern, and comprehensive set that integrates perfectly with shadcn.
+
+# Project Documentation
+
+## Slot Structure (as of current version)
+
+The following slots are used throughout the frontend, backend, and LLM prompts for travel planning and clarification:
+
+- source
+- destination
+- travelDates
+- duration
+- groupType
+- budget
+- modeOfTransport
+- carModel
+- tripTheme
+- interests
+- inputHistory
+- isPlanReady
+- (plus any additional fields such as accommodation, travelPace, occasion, foodPreference, specialNeeds, climatePreference, startDate, endDate, flexibleDates, flexibleBudget, etc.)
+
+**Note:**
+- The slot `travelerType` has been removed and replaced with `groupType` everywhere.
+- The new slot `tripTheme` has been added to capture the high-level type or theme of the trip (e.g., road trip, beach holiday, spiritual escape, etc.).
+
+## Slot Extraction and Clarification Flow
+
+- When the user submits a form or free-form text, the system collects as many slots as possible from the input.
+- For free-form text, the backend uses Gemini (LLM) to extract slots, using a prompt that returns a JSON object with the exact slot names listed above.
+- The backend checks for missing slots in the following order: destination, groupType, tripTheme, budget, interests.
+- If any required slot is missing, the backend prompts the user for that slot.
+- Once all required slots are filled, `isPlanReady` is set to true and the system can proceed to generate a travel plan.
+
+## Consistency
+
+- All slot names are now consistent across the frontend, backend, and LLM prompts.
+- Any lingering references to old slot names (such as `travelerType`) have been removed.
+
+## Next Steps
+
+- Traveler contact info, number of travelers, and payment/loyalty fields will be added in the future, likely as part of onboarding or user profile functionality.

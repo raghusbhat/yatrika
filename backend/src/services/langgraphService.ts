@@ -39,7 +39,7 @@ const clarificationSlots = [
     prompt:
       "What type of trip are you looking for? (road trip, beach holiday, spiritual escape, etc.)",
   },
-  { key: "budget", prompt: "What is your approximate budget for this trip?" },
+  { key: "   budget", prompt: "What is your approximate budget for this trip?" },
   {
     key: "interests",
     prompt:
@@ -151,8 +151,9 @@ Your structured response:`
 );
 
 const multiSlotExtractionPrompt = `
-Extract the following details from the user's message if present.
-Return a JSON object with these exact keys:
+Extract the following details from the user's message.
+
+Return ONLY a valid raw JSON object with these keys:
 - source
 - destination
 - travelDates
@@ -163,7 +164,9 @@ Return a JSON object with these exact keys:
 - carModel
 - tripTheme
 - interests
-If a field is not mentioned, set it to null.
+
+Set any missing fields to null.
+Do not include any explanation or wrap the JSON in code blocks.
 
 User message: "{user_input}"
 `;
