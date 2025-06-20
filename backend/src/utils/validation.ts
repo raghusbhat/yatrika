@@ -9,7 +9,8 @@ export type ClarifyInput = z.infer<typeof ClarifyInputSchema>;
 
 export const ClarificationStateSchema = z.object({
   destination: z.string().optional(),
-  travelerType: z.string().optional(),
+  groupType: z.string().optional(),
+  tripTheme: z.string().optional(),
   budget: z.string().optional(),
   interests: z.array(z.string()).optional(),
   inputHistory: z.array(z.string()),

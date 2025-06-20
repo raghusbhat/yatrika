@@ -1,15 +1,36 @@
 export interface ClarificationState {
+  source?: string;
   destination?: string;
-  travelerType?: string;
+  travelDates?: string;
+  duration?: string;
+  groupType?: "solo" | "couple" | "family" | "friends";
   budget?: string;
+  domesticOrInternational?: "domestic" | "international";
+  modeOfTransport?:
+    | "own car"
+    | "rental car"
+    | "taxi"
+    | "train"
+    | "bus"
+    | "flight";
+  carModel?: string;
+  flightPreferences?: string;
+  accommodation?: string;
+  travelPace?: string;
+  occasion?: string;
+  foodPreference?: string;
+  specialNeeds?: string;
+  climatePreference?: string;
   interests?: string[];
   inputHistory: string[];
   isPlanReady: boolean;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 export async function clarify(input: string, state: ClarificationState) {
   try {
-    const res = await fetch("http://localhost:3001/api/clarify", {
+    const res = await fetch(`${API_BASE_URL}/api/clarify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ input, state }),
