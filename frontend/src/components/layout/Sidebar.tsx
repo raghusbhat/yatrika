@@ -8,11 +8,20 @@ import {
   HelpCircle,
   Info,
   MessageSquare,
-  User,
   ChevronLeft,
   ChevronRight,
+  LogOut,
+  Settings as SettingsIcon,
+  User as UserIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { useNavigate } from "react-router-dom";
 
 const itineraries = [
   { title: "Weekend in Barcelona", subtitle: "2 days ago" },
@@ -30,6 +39,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
+  const navigate = useNavigate();
+
   return (
     <motion.aside
       animate={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
@@ -180,6 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
             icon={<Home className="w-4 h-4" />}
             label="Home"
             collapsed={collapsed}
+            onClick={() => navigate("/")}
           />
           <SidebarNavItem
             icon={<HelpCircle className="w-4 h-4" />}
@@ -202,19 +214,64 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
             collapsed ? "px-2 py-4 justify-center" : "px-2 py-4"
           }`}
         >
-          <div className="w-11 h-11 rounded-full bg-indigo-500/50 flex items-center justify-center">
-            <User className="w-5 h-5 text-primary" />
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">
-                Raghu Bhat
+          <Popover>
+            <PopoverTrigger asChild>
+              <div
+                className={`flex items-center gap-2 w-full cursor-pointer hover:bg-indigo-500/20 p-2 rounded-md ${
+                  collapsed ? "justify-center" : ""
+                }`}
+              >
+                <Avatar className="w-11 h-11 bg-indigo-500/50">
+                  <AvatarImage src="/avatar.png" alt="User avatar" />
+                  <AvatarFallback>RB</AvatarFallback>
+                </Avatar>
+                {!collapsed && (
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-white truncate">
+                      Raghu Bhat
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate">
+                      Premium Plan
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="text-[10px] text-slate-400 truncate">
-                Premium Plan
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-48 p-0 bg-slate-900 border shadow-lg rounded-md ml-2"
+            >
+              <div className="flex flex-col">
+                <button
+                  className="w-full flex items-center gap-2 text-left px-4 py-3 hover:bg-slate-800 text-sm text-slate-200 transition-colors focus:outline-none cursor-pointer"
+                  onClick={() => {
+                    navigate("/profile");
+                  }}
+                >
+                  <UserIcon className="w-4 h-4 text-indigo-300" />
+                  <span className="text-sm">Profile</span>
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 text-left px-4 py-3 hover:bg-slate-800 text-sm text-slate-200 transition-colors border-t border-slate-800 focus:outline-none cursor-pointer"
+                  onClick={() => {
+                    navigate("/settings");
+                  }}
+                >
+                  <SettingsIcon className="w-4 h-4 text-indigo-400" />
+                  <span>Settings</span>
+                </button>
+                <button
+                  className="w-full flex items-center gap-2 text-left px-4 py-3 hover:bg-slate-800 text-sm text-slate-200 border-t border-slate-800 transition-colors focus:outline-none cursor-pointer"
+                  onClick={() => {
+                    // TODO: Implement logout logic
+                  }}
+                >
+                  <LogOut className="w-4 h-4 text-rose-400" />
+                  <span>Logout</span>
+                </button>
               </div>
-            </div>
-          )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </motion.aside>
@@ -225,11 +282,13 @@ const SidebarNavItem: React.FC<{
   icon: React.ReactNode;
   label: string;
   collapsed: boolean;
-}> = ({ icon, label, collapsed }) => (
+  onClick?: () => void;
+}> = ({ icon, label, collapsed, onClick }) => (
   <div
     className={`flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition text-white justify-${
       collapsed ? "center" : "start"
     }`}
+    onClick={onClick}
   >
     {icon}
     <AnimatePresence initial={false}>

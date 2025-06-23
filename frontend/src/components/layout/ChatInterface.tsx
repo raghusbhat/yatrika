@@ -632,7 +632,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 >
                   <Input
                     type="text"
-                    className="w-full px-4 py-3 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
+                    className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
                     placeholder={inputFocused ? "" : displayed}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
@@ -643,7 +643,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   />
                   <Button
                     type="submit"
-                    className="px-6 py-2 rounded-lg bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 w-full flex items-center justify-center gap-2 text-base"
+                    className="px-6 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 w-full flex items-center justify-center gap-2 text-base"
                     disabled={loading || !inputValue.trim()}
                   >
                     Start Planning <ArrowRight className="w-4 h-4 ml-1" />
@@ -937,7 +937,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       ))}
                     <Button
                       type="submit"
-                      className="mt-2 px-6 py-2 rounded-lg bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 w-full flex items-center justify-center gap-2 text-base"
+                      className="mt-2 px-6 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 w-full flex items-center justify-center gap-2 text-base"
                       disabled={loading}
                     >
                       Continue <ArrowRight className="w-4 h-4 ml-1" />
