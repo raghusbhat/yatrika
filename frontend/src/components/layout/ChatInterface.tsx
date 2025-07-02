@@ -1,17 +1,28 @@
-import React, { useRef, useState, useEffect, useMemo } from "react";
-import { clarify } from "@/api/clarify";
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
+import { clarify } from "@/api/enhancedClarify";
+import type { ClarificationState } from "@/types/clarification";
+import { initialClarificationState } from "@/types/clarification";
 import ChatInputBar from "./ChatInputBar.tsx";
 import {
   RotateCcw,
   Sun,
-  Car,
   Users,
-  Gift,
   Mountain,
   Leaf,
-  Plane,
   ArrowRight,
   ArrowLeft,
+  Building2,
+  Zap,
+  MapPin,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { LuBackpack } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,33 +42,36 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-const formSchema = z.object({
-  destination: z.string().min(1, "Destination is required."),
-  groupType: z.string().optional(),
-  startDate: z.date().optional(),
-  endDate: z.date().optional(),
-  budget: z.string().optional(),
-  source: z.string().optional(),
-  flexibleDates: z.boolean().optional(),
-  flexibleBudget: z.boolean().optional(),
-});
-
-const PLACEHOLDER_EXAMPLES = [
-  "A budget road trip from Bangalore to Coorg under ₹5,000",
-  "A weekend escape under $300 from New York",
-  "A scenic drive through Bavaria with friends",
-  "A quiet onsen retreat near Mt. Fuji",
-  "A Eurostar weekend trip from London to Paris",
-  "A family beach holiday in Phuket under ฿20,000",
-  "A cultural city break in Paris for under €250",
-  "A road trip from Seoul to Busan with local food stops",
-  "A short escape to Niagara Falls from Toronto",
-  "A Carnival season trip through Rio de Janeiro",
-  "A temple and volcano tour in Bali",
-  "A snowy weekend in St. Petersburg",
-  "A historical tour from Cairo to Luxor",
-];
+const formSchema = z
+  .object({
+    destination: z.string().optional(),
+    groupType: z.string().min(1, "Group type is required."),
+    startDate: z.date().optional(),
+    endDate: z.date().optional(),
+    budget: z.string().optional(),
+    interests: z.array(z.string()).optional().nullable(),
+    source: z.string().optional(),
+    flexibleDates: z.boolean().optional(),
+    flexibleBudget: z.boolean().optional(),
+    specialNeeds: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // Must either have both dates, or flexibleDates true
+      const hasDates = !!data.startDate && !!data.endDate;
+      return hasDates || data.flexibleDates === true;
+    },
+    {
+      message: 'Please enter travel dates or select "My dates are flexible".',
+      path: ["startDate"],
+    }
+  );
 
 const DESTINATION_PLACEHOLDER_EXAMPLES = [
   "Goa, India",
@@ -90,64 +104,9 @@ const DELETING_SPEED = 30; // ms per character
 const PAUSE_AFTER_TYPING = 1200; // ms to pause after typing
 const PAUSE_AFTER_DELETING = 400; // ms to pause after deleting
 
-// Define ClarificationState locally
-interface ClarificationState {
-  source?: string;
-  destination?: string;
-  travelDates?: string;
-  duration?: string;
-  groupType?: "solo" | "couple" | "family" | "friends";
-  budget?: string;
-  domesticOrInternational?: "domestic" | "international";
-  modeOfTransport?:
-    | "own car"
-    | "rental car"
-    | "taxi"
-    | "train"
-    | "bus"
-    | "flight";
-  carModel?: string;
-  flightPreferences?: string;
-  accommodation?: string;
-  travelPace?: string;
-  occasion?: string;
-  foodPreference?: string;
-  specialNeeds?: string;
-  climatePreference?: string;
-  interests?: string[];
-  inputHistory: string[];
-  isPlanReady: boolean;
-  startDate?: string;
-  endDate?: string;
-  tripTheme?: string;
-}
-
-const initialClarificationState: ClarificationState = {
-  source: "",
-  destination: "",
-  travelDates: "",
-  duration: "",
-  groupType: undefined,
-  budget: "",
-  domesticOrInternational: undefined,
-  modeOfTransport: undefined,
-  carModel: "",
-  flightPreferences: "",
-  accommodation: "",
-  travelPace: "",
-  occasion: "",
-  foodPreference: "",
-  specialNeeds: "",
-  climatePreference: "",
-  interests: [],
-  inputHistory: [],
-  isPlanReady: false,
-  tripTheme: "",
-};
-
 interface ChatInterfaceProps {
-  sidebarCollapsed: boolean;
   sidebarWidth: number;
+  resetTrigger?: number;
 }
 
 // Add chip options for common slots
@@ -157,63 +116,34 @@ const GROUP_TYPE_CHIPS = [
   { label: "Family", value: "family" },
   { label: "Friends", value: "friends" },
 ];
-const MODE_OF_TRANSPORT_CHIPS = [
-  { label: "Own Car", value: "own car" },
-  { label: "Rental Car", value: "rental car" },
-  { label: "Taxi", value: "taxi" },
-  { label: "Train", value: "train" },
-  { label: "Bus", value: "bus" },
-  { label: "Flight", value: "flight" },
-];
 
 // Helper to detect which chips to show based on prompt
 function getChipsForPrompt(prompt: string) {
   if (/who is traveling|group type/i.test(prompt)) return GROUP_TYPE_CHIPS;
-  if (/mode of transport|how do you want to travel|travel mode/i.test(prompt))
-    return MODE_OF_TRANSPORT_CHIPS;
   return null;
 }
 
 // Initial journey type chips with icons
 const INITIAL_CHIPS = [
   {
-    label: "Beach Holiday",
-    value: "Beach Holiday",
+    label: "Beach Getaway",
+    value: "Beach Getaway",
     icon: <Sun className="w-4 h-4 mr-2" />,
   },
   {
-    label: "Road Trip",
-    value: "Road Trip",
-    icon: <Car className="w-4 h-4 mr-2" />,
+    label: "Adventure Trip",
+    value: "Adventure Trip",
+    icon: <Zap className="w-4 h-4 mr-2" />,
   },
   {
-    label: "Family Vacation",
-    value: "Family Vacation",
-    icon: <Users className="w-4 h-4 mr-2" />,
+    label: "Cultural Trip",
+    value: "Cultural Trip",
+    icon: <MapPin className="w-4 h-4 mr-2" />,
   },
   {
-    label: "Surprise Me",
-    value: "Surprise Me",
-    icon: <Gift className="w-4 h-4 mr-2" />,
-  },
-  {
-    label: "Mountain Retreat",
-    value: "Mountain Retreat",
-    icon: <Mountain className="w-4 h-4 mr-2" />,
-  },
-  {
-    label: "Spiritual Escape",
-    value: "Spiritual Escape",
-    icon: <Leaf className="w-4 h-4 mr-2" />,
-  },
-  {
-    label: "International Trip",
-    value: "International Trip",
-    icon: (
-      <span className="mr-2">
-        <Plane className="w-4 h-4" />
-      </span>
-    ),
+    label: "City Break",
+    value: "City Break",
+    icon: <Building2 className="w-4 h-4 mr-2" />,
   },
   {
     label: "Backpacking",
@@ -224,19 +154,39 @@ const INITIAL_CHIPS = [
       </span>
     ),
   },
+  {
+    label: "Family Vacation",
+    value: "Family Vacation",
+    icon: <Users className="w-4 h-4 mr-2" />,
+  },
+  {
+    label: "Spiritual Journey",
+    value: "Spiritual Journey",
+    icon: <Leaf className="w-4 h-4 mr-2" />,
+  },
+  {
+    label: "Mountain Escape",
+    value: "Mountain Escape",
+    icon: <Mountain className="w-4 h-4 mr-2" />,
+  },
+  {
+    label: "Romantic Retreat",
+    value: "Romantic Retreat",
+    icon: <Heart className="w-4 h-4 mr-2" />,
+  },
 ];
 
-// Sort chips by label length (smallest to largest)
-const INITIAL_CHIPS_SORTED = [...INITIAL_CHIPS].sort(
-  (a, b) => a.label.length - b.label.length
-);
-
-const SLOT_ORDER = [
+// Step 2: Basic Details
+const STEP_2_FIELDS = [
   {
     key: "destination",
     label: "Destination",
     type: "input",
-    placeholder: "Do you have a specific destination in mind?",
+  },
+  {
+    key: "travelDates",
+    label: "Travel Dates",
+    type: "date-range",
   },
   {
     key: "groupType",
@@ -245,29 +195,305 @@ const SLOT_ORDER = [
     options: ["Solo", "Couple", "Family", "Friends"],
   },
   {
-    key: "travelDates",
-    label: "Travel Dates",
-    type: "input",
-    placeholder:
-      "When do you want to travel? (e.g., 7 days, weekend, 12-18 May)",
-  },
-  {
-    key: "budget",
-    label: "Budget (optional)",
-    type: "input",
-    placeholder: "Your budget (e.g., Rs ₹20000, $500, flexible)",
-  },
-  {
     key: "source",
     label: "Departure City (optional)",
     type: "input",
-    placeholder: "Where are you starting from? (optional)",
+    placeholder: "Departure city",
   },
 ];
 
+// Step 3: Preferences & Extras
+const STEP_3_FIELDS = [
+  {
+    key: "budget",
+    label: "Budget",
+    type: "input",
+    placeholder: "Your budget range (e.g., ₹20,000, $500)",
+  },
+  {
+    key: "interests",
+    label: "Interests",
+    type: "input",
+    placeholder: "Museums, Adventure, Food & Dining, Nature, Culture...",
+  },
+  {
+    key: "specialNeeds",
+    label: "Special Needs",
+    type: "input",
+    placeholder: "Accessibility, dietary restrictions, etc.",
+  },
+];
+
+// Add this above the ChatInterface component
+const stepVariants = {
+  enter: (direction: "forward" | "back") => ({
+    x: direction === "forward" ? 80 : -80,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+  },
+  exit: (direction: "forward" | "back") => ({
+    x: direction === "forward" ? -80 : 80,
+    opacity: 0,
+  }),
+};
+
+// Add at the top, after imports
+const INTEREST_CHIPS = [
+  "Adventure",
+  "Nature",
+  "Beaches",
+  "Mountains",
+  "Culture",
+  "History",
+  "Art",
+  "Food & Dining",
+  "Nightlife",
+  "Shopping",
+  "Wellness",
+  "Wildlife",
+  "Sports",
+  "Festivals",
+  "Family",
+  "Photography",
+  "Relaxation",
+  "Local Experiences",
+];
+
+// HorizontalChipSelector: UX-optimized horizontally scrollable chips following mobile best practices
+const HorizontalChipSelector: React.FC<{
+  options: string[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+}> = ({ options, value, onChange, placeholder }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, scrollLeft: 0 });
+
+  // Log chip count and container width on mount and resize
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    console.log("[Chips] Rendered chip count:", options.length);
+    console.log(
+      "[Chips] Container clientWidth:",
+      el.clientWidth,
+      "scrollWidth:",
+      el.scrollWidth
+    );
+    const handleResize = () => {
+      console.log(
+        "[Chips] Window resized. Container clientWidth:",
+        el.clientWidth,
+        "scrollWidth:",
+        el.scrollWidth
+      );
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [options.length]);
+
+  const handleChipClick = (chip: string) => {
+    console.log("[Chips] Chip clicked:", chip);
+    if (value.includes(chip)) {
+      onChange(value.filter((v) => v !== chip));
+    } else {
+      onChange([...value, chip]);
+    }
+  };
+
+  // Update fade indicators based on scroll position
+  const updateFadeIndicators = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    // Set fade indicators and enable/disable chevrons
+    const newShowLeftFade = scrollLeft > 0;
+    const newShowRightFade = Math.ceil(scrollLeft + clientWidth) < scrollWidth;
+    setShowLeftFade(newShowLeftFade);
+    setShowRightFade(newShowRightFade);
+
+    console.log("Scroll State:", {
+      scrollLeft,
+      scrollWidth,
+      clientWidth,
+      newShowLeftFade,
+      newShowRightFade,
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // Initial check
+    setTimeout(updateFadeIndicators, 50);
+
+    // Add scroll listener
+    el.addEventListener("scroll", updateFadeIndicators);
+    window.addEventListener("resize", updateFadeIndicators);
+
+    // Add mouse wheel horizontal scrolling for desktop
+    const handleWheel = (e: WheelEvent) => {
+      // If scrolling vertically but shift is held, or scrolling horizontally
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        e.preventDefault();
+        el.scrollBy({
+          left: e.deltaX || e.deltaY,
+          behavior: "smooth",
+        });
+      }
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+
+    // Add mouse drag scrolling for desktop
+    const handleMouseDown = (e: MouseEvent) => {
+      setIsDragging(true);
+      setDragStart({
+        x: e.pageX,
+        scrollLeft: el.scrollLeft,
+      });
+      if (el) el.style.cursor = "grabbing";
+      console.log("[Chips] Drag start", { x: e.pageX });
+      e.preventDefault();
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX;
+      const walk = (x - dragStart.x) * 2;
+      if (el) {
+        el.scrollLeft = dragStart.scrollLeft - walk;
+        console.log("[Chips] Drag move", {
+          x,
+          walk,
+          scrollLeft: el.scrollLeft,
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      if (el) el.style.cursor = "grab";
+      console.log("[Chips] Drag end");
+    };
+
+    const handleMouseLeave = () => {
+      setIsDragging(false);
+      if (el) el.style.cursor = "grab";
+    };
+
+    el.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    el.addEventListener("mouseleave", handleMouseLeave);
+
+    // Set initial cursor
+    el.style.cursor = "grab";
+
+    return () => {
+      el.removeEventListener("scroll", updateFadeIndicators);
+      el.removeEventListener("wheel", handleWheel);
+      el.removeEventListener("mousedown", handleMouseDown);
+      el.removeEventListener("mouseleave", handleMouseLeave);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("resize", updateFadeIndicators);
+    };
+  }, [updateFadeIndicators, options.length]);
+
+  const scrollToDirection = (direction: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    console.log(`[Chevron] Clicked: ${direction}`);
+    const chipWidth = 120; // Approximate chip width + gap
+    const scrollAmount = chipWidth * 2; // Scroll by 2 chips
+    el.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
+    setTimeout(() => {
+      console.log("[Chevron] After scroll:", {
+        scrollLeft: el.scrollLeft,
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+      });
+    }, 300);
+  };
+
+  return (
+    <div className="w-full flex items-center h-12">
+      {/* Left Chevron */}
+      <button
+        type="button"
+        aria-label="Scroll left"
+        className="h-8 w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer mr-2"
+        style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
+        onClick={() => {
+          console.log("[Chevron] Clicked: left");
+          scrollToDirection("left");
+        }}
+      >
+        <ChevronLeft className="w-4 h-4 text-slate-200" />
+      </button>
+      {/* Scrollable Chips */}
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto no-scrollbar flex-1 h-full"
+        style={{
+          scrollBehavior: "smooth",
+          WebkitOverflowScrolling: "touch",
+          scrollSnapType: "x mandatory",
+        }}
+      >
+        <div className="flex gap-3 w-max items-center h-full px-1">
+          {options.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              className={`px-4 py-2 rounded-lg border text-xs font-medium transition-all duration-200 cursor-pointer select-none flex-shrink-0 whitespace-nowrap min-w-fit scroll-snap-align-start h-8 flex items-center justify-center ${
+                value.includes(chip)
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-lg scale-105"
+                  : "bg-indigo-700/25 text-slate-200 border-indigo-400/40 hover:bg-indigo-700/50 hover:border-indigo-400/60"
+              }`}
+              onClick={() => handleChipClick(chip)}
+              style={{
+                scrollSnapAlign: "start",
+              }}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Right Chevron */}
+      <button
+        type="button"
+        aria-label="Scroll right"
+        className="h-8 w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer"
+        style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
+        onClick={() => {
+          console.log("[Chevron] Clicked: right");
+          scrollToDirection("right");
+        }}
+      >
+        <ChevronRight className="w-4 h-4 text-slate-200" />
+      </button>
+    </div>
+  );
+};
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
-  sidebarCollapsed,
   sidebarWidth,
+  resetTrigger,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -286,32 +512,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 
-  // Typing animation state
-  const [placeholderIdx, setPlaceholderIdx] = useState(0);
-  const [displayed, setDisplayed] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-
+  // Step management
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [isNewChat, setIsNewChat] = useState(true);
-  const [showInitialSlots, setShowInitialSlots] = useState(false);
-  const [missingSlots, setMissingSlots] = useState<string[]>([]);
   const [intentRejected, setIntentRejected] = useState(false);
   const [extractedSlots, setExtractedSlots] = useState<
     Partial<ClarificationState>
   >({});
 
-  const [inputFocused, setInputFocused] = useState(false);
   const [initialChip, setInitialChip] = useState<string | null>(null);
+  const [selectedChip, setSelectedChip] = useState<string | null>(null);
 
   // Add state for destination placeholder animation
   const [destinationPlaceholderIdx, setDestinationPlaceholderIdx] = useState(0);
   const [destinationDisplayed, setDestinationDisplayed] = useState("");
   const [destinationIsDeleting, setDestinationIsDeleting] = useState(false);
-  const [destinationInputFocused, setDestinationInputFocused] = useState(false);
-  const [destinationInputValue, setDestinationInputValue] = useState("");
 
-  const [inputFocusStates, setInputFocusStates] = useState<{
-    [key: string]: boolean;
-  }>({});
+  // Add state to track navigation direction
+  const [navDirection, setNavDirection] = useState<"forward" | "back">(
+    "forward"
+  );
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -321,16 +541,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       startDate: undefined,
       endDate: undefined,
       budget: "",
-      source: "",
+      interests: [],
+      source: localStorage.getItem("user_city") || "",
       flexibleDates: false,
       flexibleBudget: false,
+      specialNeeds: "",
     },
   });
 
   const startDate = form.watch("startDate");
   const endDate = form.watch("endDate");
   const flexibleDates = form.watch("flexibleDates");
-  const flexibleBudget = form.watch("flexibleBudget");
 
   const totalDays = useMemo(() => {
     if (startDate && endDate && endDate >= startDate) {
@@ -342,6 +563,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   useEffect(() => {
     // When extractedSlots changes, update the form values
+    const userCity = localStorage.getItem("user_city") || "";
     form.reset({
       destination: extractedSlots.destination || "",
       groupType: extractedSlots.groupType || "",
@@ -352,35 +574,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         ? new Date(extractedSlots.endDate)
         : undefined,
       budget: extractedSlots.budget || "",
-      source: extractedSlots.source || "",
+      interests: extractedSlots.interests || [],
+      source:
+        typeof extractedSlots.source === "string"
+          ? extractedSlots.source
+          : typeof userCity === "string"
+          ? userCity
+          : "",
       flexibleBudget: false,
       flexibleDates: false,
+      specialNeeds: "",
     });
   }, [extractedSlots, form]);
-
-  useEffect(() => {
-    const current = PLACEHOLDER_EXAMPLES[placeholderIdx];
-    let timeout: NodeJS.Timeout;
-    if (!isDeleting && displayed.length < current.length) {
-      timeout = setTimeout(
-        () => setDisplayed(current.slice(0, displayed.length + 1)),
-        TYPING_SPEED
-      );
-    } else if (!isDeleting && displayed.length === current.length) {
-      timeout = setTimeout(() => setIsDeleting(true), PAUSE_AFTER_TYPING);
-    } else if (isDeleting && displayed.length > 0) {
-      timeout = setTimeout(
-        () => setDisplayed(current.slice(0, displayed.length - 1)),
-        DELETING_SPEED
-      );
-    } else if (isDeleting && displayed.length === 0) {
-      timeout = setTimeout(() => {
-        setIsDeleting(false);
-        setPlaceholderIdx((idx) => (idx + 1) % PLACEHOLDER_EXAMPLES.length);
-      }, PAUSE_AFTER_DELETING);
-    }
-    return () => clearTimeout(timeout);
-  }, [displayed, isDeleting, placeholderIdx]);
 
   // Auto-scroll to bottom when messages change
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -390,7 +595,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   // Animate destination placeholder
   useEffect(() => {
-    if (!showInitialSlots) return; // Only animate when slot questions are shown
+    if (currentStep !== 2) return; // Only animate when on step 2
     const current = DESTINATION_PLACEHOLDER_EXAMPLES[destinationPlaceholderIdx];
     let timeout: NodeJS.Timeout;
     if (
@@ -433,21 +638,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     destinationDisplayed,
     destinationIsDeleting,
     destinationPlaceholderIdx,
-    showInitialSlots,
+    currentStep,
   ]);
 
   const handleSubmit = async (e: React.FormEvent, retryMessage?: string) => {
     e.preventDefault();
-    if ((!inputValue.trim() && !retryMessage) || loading) return;
+    if (loading) return;
+    const messageToSend = retryMessage || inputValue.trim();
+    if (!messageToSend) return;
     setError(null);
-    const userMessage = retryMessage || inputValue.trim();
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages((prev) => [...prev, { role: "user", content: messageToSend }]);
     setInputValue("");
-    setLastUserMessage(userMessage); // Save last user message
-    setIsNewChat(false); // Mark chat as not new after first user message
+    setLastUserMessage(messageToSend);
     setLoading(true);
     try {
-      const res = await clarify(userMessage, clarificationState);
+      const res = await clarify(messageToSend, clarificationState);
       setClarificationState(res.updatedState);
       if (res.nextPrompt) {
         setMessages((prev) => [
@@ -469,82 +674,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  // Initial chip click handler (skips intent detection)
+  // Initial chip selection handler (just selects, doesn't move to step 2)
   const handleInitialChipClick = (chipValue: string) => {
-    setMessages((prev) => [...prev, { role: "user", content: chipValue }]);
-    setInputValue("");
-    setLastUserMessage(chipValue);
-    setIsNewChat(false);
-    setShowInitialSlots(true);
-    setMissingSlots(SLOT_ORDER.map((s) => s.key));
+    setSelectedChip(chipValue);
+    setInitialChip(chipValue);
     setExtractedSlots({ tripTheme: chipValue });
-    setIntentRejected(false);
-    setInitialChip(chipValue); // Track which chip was selected
   };
 
-  // On text submit: intent detection + slot extraction
-  const handleInitialTextSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() || loading) return;
-    setError(null);
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: inputValue.trim() },
-    ]);
-    setInputValue("");
-    setLastUserMessage(inputValue.trim());
-    setIsNewChat(false);
-    setLoading(true);
-    setIntentRejected(false);
-    try {
-      const res = await clarify(inputValue.trim(), clarificationState);
-      // If backend says not travel, show polite message
-      if (
-        res.nextPrompt &&
-        /travel planning|specialize in planning travel|ask me about trips/i.test(
-          res.nextPrompt
-        )
-      ) {
-        setIntentRejected(true);
-        setShowInitialSlots(false);
-        setLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: res.nextPrompt },
-        ]);
-        return;
-      }
-      // Otherwise, extract slots and show only missing ones
-      const slotsFilled: Partial<ClarificationState> = res.updatedState || {};
-      setExtractedSlots(slotsFilled);
-      // Find missing slots
-      const missing = SLOT_ORDER.filter((s) => {
-        const val = slotsFilled[s.key as keyof ClarificationState];
-        return !val || (Array.isArray(val) && val.length === 0);
-      }).map((s) => s.key);
-      setMissingSlots(missing);
-      setShowInitialSlots(true);
+  // Continue button handler for step 1
+  const handleStep1Continue = () => {
+    if (selectedChip) {
+      setNavDirection("forward");
+      setMessages((prev) => [...prev, { role: "user", content: selectedChip }]);
+      setLastUserMessage(selectedChip);
+      setIsNewChat(false);
+      setCurrentStep(2);
       setIntentRejected(false);
-      setClarificationState(res.updatedState);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Let's get a few more details to plan your trip!",
-        },
-      ]);
-    } catch (err) {
-      let msg = "Sorry, something went wrong.";
-      if (err instanceof Error && err.message) msg = err.message;
-      setError(msg);
-    } finally {
-      setLoading(false);
     }
   };
 
   // Chips for slot questions after initial chat
   const handleChipClick = async (chipValue: string) => {
     if (loading) return;
+
+    // Handle chips (like group type)
     setMessages((prev) => [...prev, { role: "user", content: chipValue }]);
     setInputValue("");
     setLastUserMessage(chipValue);
@@ -582,213 +735,596 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // Responsive max width for chat area and input bar
   const maxWidth = Math.min(900, window.innerWidth - sidebarWidth - 32);
 
-  // Filter slots: if Surprise Me, omit destination
-  const slotOrderToShow = useMemo(() => {
+  // Filter fields: if Surprise Me, omit destination
+  const fieldsToShow = useMemo(() => {
     if (initialChip && initialChip.toLowerCase().includes("surprise")) {
-      return SLOT_ORDER.filter((slot) => slot.key !== "destination");
+      return STEP_2_FIELDS.filter((field) => field.key !== "destination");
     }
-    return SLOT_ORDER;
+    return STEP_2_FIELDS;
   }, [initialChip]);
 
+  // Reset function to restore initial state
+  const resetChat = useCallback(() => {
+    console.log("[ChatInterface] Resetting chat to initial state");
+
+    // Reset all state variables to initial values
+    setInputValue("");
+    setClarificationState(initialClarificationState);
+    setMessages([
+      {
+        role: "assistant",
+        content: "What kind of journey are you dreaming of?",
+      },
+    ]);
+    setLoading(false);
+    setError(null);
+    setLastUserMessage(null);
+    setIsNewChat(true);
+    setCurrentStep(1);
+    setIntentRejected(false);
+    setExtractedSlots({});
+    setInitialChip(null);
+    setSelectedChip(null);
+
+    // Reset form
+    const userCity = localStorage.getItem("user_city") || "";
+    form.reset({
+      destination: "",
+      groupType: "",
+      startDate: undefined,
+      endDate: undefined,
+      budget: "",
+      interests: [],
+      source: typeof userCity === "string" ? userCity : "",
+      flexibleDates: false,
+      flexibleBudget: false,
+      specialNeeds: "",
+    });
+
+    // Reset typing animation states
+    setDestinationPlaceholderIdx(0);
+    setDestinationDisplayed("");
+    setDestinationIsDeleting(false);
+  }, [form]);
+
+  // Effect to trigger reset when resetTrigger changes
+  React.useEffect(() => {
+    if (resetTrigger && resetTrigger > 0) {
+      console.log("[ChatInterface] Reset triggered from sidebar");
+      resetChat();
+    }
+  }, [resetTrigger, resetChat]);
+
+  const canContinueStep2 = useMemo(() => {
+    const groupType = form.watch("groupType");
+    const startDate = form.watch("startDate");
+    const endDate = form.watch("endDate");
+    const flexibleDates = form.watch("flexibleDates");
+    const hasDates = !!startDate && !!endDate;
+    // groupType must be one of the allowed values
+    const allowedGroupTypes = GROUP_TYPE_CHIPS.map((c) => c.value);
+    return (
+      allowedGroupTypes.includes(groupType) &&
+      (hasDates || flexibleDates === true)
+    );
+  }, [
+    form.watch("groupType"),
+    form.watch("startDate"),
+    form.watch("endDate"),
+    form.watch("flexibleDates"),
+  ]);
+
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col">
+    <main className="min-h-screen  flex flex-col bg-full">
       <section className="flex-1 flex flex-col w-full h-full items-center justify-center">
         <div className="relative flex flex-col w-full h-full max-w-full py-0 items-center justify-center overflow-hidden">
-          {/* Animate between initial chips + input and slot questions */}
-          <AnimatePresence mode="wait">
-            {isNewChat && !showInitialSlots && !intentRejected ? (
+          {/* Render Stepper above AnimatePresence, so it never unmounts */}
+          <Stepper step={currentStep as 1 | 2 | 3} />
+          <AnimatePresence custom={navDirection} mode="wait" initial={false}>
+            {/* Step 1: Choose Trip Type */}
+            {currentStep === 1 && isNewChat && !intentRejected && (
               <motion.div
-                key="initial-chips"
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -40 }}
-                transition={{ duration: 0.5, type: "spring", bounce: 0.25 }}
-                className="flex flex-col items-center justify-center w-full h-full pt-24"
+                key="step-1"
+                custom={navDirection}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.4, type: "tween", ease: "easeInOut" }}
+                className="flex flex-col items-center justify-center w-full h-full pt-4 px-0"
               >
-                <div className="mb-8 text-2xl font-semibold text-slate-100 text-center">
-                  Let's plan your next trip together. Where do you want to go?
+                <div className="mb-4 text-lg font-medium text-slate-100 text-center w-full">
+                  What kind of journey are you dreaming of?
                 </div>
-                {/* Responsive chip grid: 1 column on mobile, 2 columns on sm+ */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xs sm:max-w-md md:max-w-lg mb-0">
-                  {INITIAL_CHIPS_SORTED.map((chip) => (
-                    <Button
-                      key={chip.value}
-                      size="sm"
-                      className="w-full px-3 py-2 flex items-center justify-center gap-2 rounded-md bg-indigo-800/30 text-white border border-indigo-400/40 font-medium text-sm shadow-sm hover:bg-indigo-700/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 transition-all duration-150 truncate cursor-pointer"
-                      style={{ minWidth: 0, minHeight: 36, maxWidth: "100%" }}
-                      onClick={() => handleInitialChipClick(chip.value)}
-                      disabled={loading}
-                      type="button"
-                    >
-                      {chip.icon}
-                      {chip.label}
-                    </Button>
-                  ))}
-                </div>
-                {/* Input box and button as a vertical group with consistent spacing */}
-                <form
-                  onSubmit={handleInitialTextSubmit}
-                  className="flex flex-col gap-5 w-full max-w-xs sm:max-w-md md:max-w-lg mt-5"
-                >
-                  <Input
-                    type="text"
-                    className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
-                    placeholder={inputFocused ? "" : displayed}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    disabled={loading}
-                    style={{ minHeight: 40 }}
-                    onFocus={() => setInputFocused(true)}
-                    onBlur={() => setInputFocused(false)}
-                  />
-                  <Button
-                    type="submit"
-                    className="px-6 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 w-full flex items-center justify-center gap-2 text-base"
-                    disabled={loading || !inputValue.trim()}
-                  >
-                    Start Planning <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </form>
-                {error && (
-                  <div className="mt-4 text-rose-400 text-sm">{error}</div>
-                )}
-              </motion.div>
-            ) : null}
+                <div className="w-full max-w-2xl mx-auto flex flex-col gap-5 px-4">
+                  <div className="grid grid-cols-3 gap-3 w-full">
+                    {INITIAL_CHIPS.map((chip) => (
+                      <Button
+                        key={chip.value}
+                        size="lg"
+                        className={`px-3 py-4 flex items-center justify-center gap-2 rounded-md border font-semibold text-xs shadow-lg transition-all duration-200 min-h-[3.5rem] text-center break-words hyphens-auto ${
+                          selectedChip === chip.value
+                            ? "bg-indigo-600 text-white border-indigo-500 shadow-lg"
+                            : "bg-indigo-700/30 text-white border-indigo-400/40 hover:bg-indigo-700/50 hover:border-indigo-400/60"
+                        }`}
+                        style={{
+                          outline: "none",
+                          boxShadow:
+                            selectedChip === chip.value
+                              ? "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+                              : "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                        }}
+                        onClick={() => handleInitialChipClick(chip.value)}
+                        disabled={loading}
+                        type="button"
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          {chip.icon}
+                          <span className="leading-tight text-center whitespace-normal">
+                            {chip.label}
+                          </span>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
 
-            {/* Slot questions (after chip or travel intent) */}
-            {showInitialSlots && !intentRejected && (
+                  {/* Navigation buttons */}
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="flex-1 px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-semibold text-sm h-10"
+                      onClick={() => {
+                        setNavDirection("forward");
+                        setCurrentStep(2);
+                      }}
+                      disabled={loading}
+                    >
+                      Skip
+                    </Button>
+                    <div className="flex-1">
+                      {!selectedChip && currentStep === 1 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="w-full block">
+                              <Button
+                                type="button"
+                                className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
+                                disabled={!selectedChip || loading}
+                                onClick={handleStep1Continue}
+                              >
+                                Continue <ArrowRight className="w-4 h-4 ml-1" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="top"
+                            className="max-w-xs text-center"
+                          >
+                            Please select a trip type to continue.
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Button
+                          type="button"
+                          className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
+                          disabled={!selectedChip || loading}
+                          onClick={handleStep1Continue}
+                        >
+                          Continue <ArrowRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {error && (
+                    <div className="mt-2 text-rose-400 text-sm text-center">
+                      {error}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2: Basic Details */}
+            {currentStep === 2 && !intentRejected && (
               <motion.div
-                key="slot-questions"
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -40 }}
-                transition={{ duration: 0.5, type: "spring", bounce: 0.25 }}
-                className="flex flex-col items-center justify-center w-full h-full pt-4"
+                key="step-2"
+                custom={navDirection}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.4, type: "tween", ease: "easeInOut" }}
+                className="flex flex-col items-center justify-center w-full h-full pt-4 px-0"
               >
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  aria-label="Go back"
-                  className="self-start mb-2 px-2 py-1 text-xs h-7 min-h-0"
-                  onClick={() => {
-                    setShowInitialSlots(false);
-                    setIsNewChat(true);
-                  }}
-                >
-                  <ArrowLeft className="w-4 h-4 mr-1" /> Back
-                </Button>
-                <div className="mb-4 text-lg font-semibold text-slate-100 text-center">
-                  To help me craft the perfect itinerary for you, could you
-                  share a few more details about your trip?
+                <div className="mb-4 text-lg font-semibold text-slate-100 text-center w-full">
+                  To craft your perfect itinerary, could you share a few more
+                  trip details?
                 </div>
                 <Form {...form}>
                   <form
-                    className="w-full max-w-md flex flex-col gap-5"
+                    className="w-full max-w-2xl mx-auto flex flex-col gap-5 px-4"
                     onSubmit={form.handleSubmit(async (values) => {
-                      // Gather slot values from form
-                      const slotValues = { ...extractedSlots, ...values };
+                      // Just move to step 3, don't submit to backend yet
+                      const processedValues: Partial<ClarificationState> = {
+                        destination: values.destination,
+                        source: values.source,
+                        groupType:
+                          values.groupType as ClarificationState["groupType"],
+                        startDate: values.startDate
+                          ? format(values.startDate, "yyyy-MM-dd")
+                          : undefined,
+                        endDate: values.endDate
+                          ? format(values.endDate, "yyyy-MM-dd")
+                          : undefined,
+                        budget: values.budget,
+                        interests: values.interests || [],
+                        specialNeeds: values.specialNeeds,
+                        flexibleDates: values.flexibleDates,
+                      };
 
-                      // Send all slot values to backend
-                      setLoading(true);
-                      setError(null);
-                      try {
-                        const res = await clarify("", {
+                      setExtractedSlots((prev) => ({
+                        ...prev,
+                        ...processedValues,
+                      }));
+                      setCurrentStep(3);
+                    })}
+                  >
+                    {fieldsToShow.map((field) => (
+                      <div key={field.key} className="w-full">
+                        {field.key === "travelDates" ? (
+                          <div>
+                            <div className="flex gap-2">
+                              <FormField
+                                control={form.control}
+                                name="startDate"
+                                render={({ field }) => (
+                                  <FormItem className="flex flex-col flex-1">
+                                    <FormLabel>Start Date</FormLabel>
+                                    <FormControl>
+                                      <DatePicker
+                                        field={field}
+                                        placeholderText="Select start date"
+                                        minDate={new Date()}
+                                        disabled={flexibleDates}
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-rose-500" />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="endDate"
+                                render={({ field }) => (
+                                  <FormItem className="flex flex-col flex-1">
+                                    <FormLabel>End Date</FormLabel>
+                                    <FormControl>
+                                      <DatePicker
+                                        field={field}
+                                        placeholderText="Select end date"
+                                        minDate={
+                                          form.watch("startDate") || new Date()
+                                        }
+                                        disabled={
+                                          !form.watch("startDate") ||
+                                          flexibleDates
+                                        }
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-rose-500" />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <FormField
+                                control={form.control}
+                                name="flexibleDates"
+                                render={({ field }) => (
+                                  <FormItem className="flex flex-row items-center">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={(checked) => {
+                                          field.onChange(checked);
+                                          if (checked) {
+                                            form.setValue(
+                                              "startDate",
+                                              undefined,
+                                              { shouldValidate: true }
+                                            );
+                                            form.setValue(
+                                              "endDate",
+                                              undefined,
+                                              { shouldValidate: true }
+                                            );
+                                          }
+                                        }}
+                                        className="mr-2"
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="text-slate-300 text-sm font-normal cursor-pointer select-none">
+                                      My dates are flexible
+                                    </FormLabel>
+                                  </FormItem>
+                                )}
+                              />
+                              <div className="flex-1 text-right text-sm min-h-[1.25rem] pr-1 flex items-center justify-end gap-2">
+                                {!flexibleDates &&
+                                totalDays &&
+                                totalDays > 0 ? (
+                                  <>
+                                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                                    <span className="text-slate-200">
+                                      {totalDays}{" "}
+                                      {totalDays === 1 ? "Day" : "Days"}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span>&nbsp;</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : field.key === "destination" ? (
+                          <FormField
+                            control={form.control}
+                            name="destination"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Destination</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder={destinationDisplayed || ""}
+                                    className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
+                                  />
+                                </FormControl>
+                                <FormMessage className="text-rose-500" />
+                              </FormItem>
+                            )}
+                          />
+                        ) : field.key === "groupType" ? (
+                          <FormField
+                            control={form.control}
+                            name="groupType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Group Type</FormLabel>
+                                <FormControl>
+                                  <GroupTypeChips
+                                    options={GROUP_TYPE_CHIPS.map(
+                                      (c) => c.value
+                                    )}
+                                    value={field.value || ""}
+                                    onChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormMessage className="text-rose-500" />
+                              </FormItem>
+                            )}
+                          />
+                        ) : field.key === "source" ? (
+                          <FormField
+                            control={form.control}
+                            name="source"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Departure City (optional)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="Departure city"
+                                    className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
+                                  />
+                                </FormControl>
+                                <FormMessage className="text-rose-500" />
+                              </FormItem>
+                            )}
+                          />
+                        ) : null}
+                      </div>
+                    ))}
+
+                    {/* Navigation buttons */}
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        aria-label="Go back"
+                        className="flex-1 px-4 py-2 text-sm h-10"
+                        onClick={() => {
+                          setNavDirection("back");
+                          setTimeout(() => {
+                            setCurrentStep(1);
+                            setIsNewChat(true);
+                          }, 0);
+                        }}
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-1" /> Back
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="flex-1 px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-semibold text-sm h-10"
+                        onClick={() => {
+                          setNavDirection("forward");
+                          setCurrentStep(3);
+                        }}
+                        disabled={loading}
+                      >
+                        Skip
+                      </Button>
+                      <div className="flex-1">
+                        {!canContinueStep2 && currentStep === 2 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="w-full block">
+                                <Button
+                                  type="submit"
+                                  className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
+                                  disabled={loading || !canContinueStep2}
+                                  onClick={() => setNavDirection("forward")}
+                                >
+                                  Continue{" "}
+                                  <ArrowRight className="w-4 h-4 ml-1" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              className="max-w-xs text-center"
+                            >
+                              {(() => {
+                                const groupType = form.watch("groupType");
+                                const startDate = form.watch("startDate");
+                                const endDate = form.watch("endDate");
+                                const flexibleDates =
+                                  form.watch("flexibleDates");
+                                const allowedGroupTypes = GROUP_TYPE_CHIPS.map(
+                                  (c) => c.value
+                                );
+                                if (!allowedGroupTypes.includes(groupType)) {
+                                  return "Please select who is traveling (Group Type).";
+                                }
+                                if (
+                                  !(!!startDate && !!endDate) &&
+                                  !flexibleDates
+                                ) {
+                                  return "Please enter travel dates or select 'My dates are flexible'.";
+                                }
+                                return "Please complete the required fields above.";
+                              })()}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            type="submit"
+                            className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
+                            disabled={loading || !canContinueStep2}
+                            onClick={() => setNavDirection("forward")}
+                          >
+                            Continue <ArrowRight className="w-4 h-4 ml-1" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {error && (
+                      <div className="mt-2 text-rose-400 text-sm">{error}</div>
+                    )}
+                  </form>
+                </Form>
+              </motion.div>
+            )}
+
+            {/* Step 3: Preferences & Extras */}
+            {currentStep === 3 && !intentRejected && (
+              <motion.div
+                key="step-3"
+                custom={navDirection}
+                variants={stepVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.4, type: "tween", ease: "easeInOut" }}
+                className="flex flex-col items-center justify-center w-full h-full pt-4 px-0"
+              >
+                <div className="mb-4 text-lg font-semibold text-slate-100 text-center w-full">
+                  Almost there! Add a few preferences to enhance your trip.
+                </div>
+                {/* Common parent for chip selector and form fields */}
+                <div className="w-full max-w-2xl mx-auto px-4">
+                  <Form {...form}>
+                    <form
+                      className="w-full flex flex-col gap-5"
+                      onSubmit={form.handleSubmit(async (values) => {
+                        // Gather all slot values and submit to backend
+                        const allSlotValues = { ...extractedSlots, ...values };
+
+                        // Process interests as string if array
+                        const processedSlotValues = {
+                          ...allSlotValues,
+                          interests: Array.isArray(values.interests)
+                            ? values.interests
+                            : typeof values.interests === "string" &&
+                              values.interests
+                            ? (values.interests as string)
+                                .split(",")
+                                .map((item) => item.trim())
+                                .filter(Boolean)
+                            : [],
+                        };
+
+                        // When calling clarify, just pass interests as is (array or null)
+                        const clarifyPayload = {
                           ...clarificationState,
-                          ...slotValues,
+                          ...processedSlotValues,
                           tripTheme:
-                            slotValues.tripTheme ||
+                            processedSlotValues.tripTheme ||
                             clarificationState.tripTheme ||
                             initialChip ||
                             "",
-                          startDate: values.startDate
-                            ? format(values.startDate, "yyyy-MM-dd")
-                            : "",
-                          endDate: values.endDate
-                            ? format(values.endDate, "yyyy-MM-dd")
-                            : "",
                           groupType:
-                            values.groupType as ClarificationState["groupType"],
-                        } as ClarificationState);
-                        setClarificationState(res.updatedState);
-                        setMessages((prev) => [
-                          ...prev,
-                          {
-                            role: "assistant",
-                            content: res.nextPrompt || "Your plan is ready!",
-                          },
-                        ]);
-                        setShowInitialSlots(false);
-                        setIsNewChat(false);
-                      } catch (err) {
-                        let msg = "Sorry, something went wrong.";
-                        if (err instanceof Error && err.message)
-                          msg = err.message;
-                        setError(msg);
-                      } finally {
-                        setLoading(false);
-                      }
-                    })}
-                  >
-                    {slotOrderToShow
-                      .filter(
-                        (slot) =>
-                          showInitialSlots &&
-                          (missingSlots.includes(slot.key) ||
-                            extractedSlots[slot.key] !== undefined)
-                      )
-                      .map((slot) => (
-                        <div key={slot.key} className="w-full">
-                          {slot.key === "travelDates" ? (
+                            processedSlotValues.groupType as ClarificationState["groupType"],
+                          interests:
+                            processedSlotValues.interests &&
+                            processedSlotValues.interests.length > 0
+                              ? processedSlotValues.interests
+                              : null,
+                        } as ClarificationState;
+
+                        setLoading(true);
+                        setError(null);
+                        try {
+                          const res = await clarify("", clarifyPayload);
+                          setClarificationState(res.updatedState);
+                          setMessages((prev) => [
+                            ...prev,
+                            {
+                              role: "assistant",
+                              content: res.nextPrompt || "Your plan is ready!",
+                            },
+                          ]);
+                          // Go to conversation
+                          setCurrentStep(1);
+                          setIsNewChat(false);
+                        } catch (err) {
+                          let msg = "Sorry, something went wrong.";
+                          if (err instanceof Error && err.message)
+                            msg = err.message;
+                          setError(msg);
+                        } finally {
+                          setLoading(false);
+                        }
+                      })}
+                    >
+                      {STEP_3_FIELDS.map((field) => (
+                        <div key={field.key} className="w-full">
+                          {field.key === "budget" ? (
                             <div>
-                              <div className="flex gap-2">
-                                <FormField
-                                  control={form.control}
-                                  name="startDate"
-                                  render={({ field }) => (
-                                    <FormItem className="flex flex-col flex-1">
-                                      <FormLabel>Start Date</FormLabel>
-                                      <FormControl>
-                                        <DatePicker
-                                          field={field}
-                                          placeholderText="Select start date"
-                                          minDate={new Date()}
-                                          disabled={flexibleDates}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <FormField
-                                  control={form.control}
-                                  name="endDate"
-                                  render={({ field }) => (
-                                    <FormItem className="flex flex-col flex-1">
-                                      <FormLabel>End Date</FormLabel>
-                                      <FormControl>
-                                        <DatePicker
-                                          field={field}
-                                          placeholderText="Select end date"
-                                          minDate={
-                                            form.watch("startDate") ||
-                                            new Date()
-                                          }
-                                          disabled={
-                                            !form.watch("startDate") ||
-                                            flexibleDates
-                                          }
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </div>
+                              <FormField
+                                control={form.control}
+                                name="budget"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Budget</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        placeholder="Your budget range (e.g., ₹20,000, $500)"
+                                        className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-rose-500" />
+                                  </FormItem>
+                                )}
+                              />
                               <div className="flex items-center gap-2 mt-2">
                                 <FormField
                                   control={form.control}
-                                  name="flexibleDates"
+                                  name="flexibleBudget"
                                   render={({ field }) => (
                                     <FormItem className="flex flex-row items-center">
                                       <FormControl>
@@ -797,162 +1333,120 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                           onCheckedChange={(checked) => {
                                             field.onChange(checked);
                                             if (checked) {
-                                              form.setValue(
-                                                "startDate",
-                                                undefined,
-                                                { shouldValidate: true }
-                                              );
-                                              form.setValue(
-                                                "endDate",
-                                                undefined,
-                                                { shouldValidate: true }
-                                              );
+                                              form.setValue("budget", "", {
+                                                shouldValidate: true,
+                                              });
                                             }
                                           }}
                                           className="mr-2"
                                         />
                                       </FormControl>
                                       <FormLabel className="text-slate-300 text-sm font-normal cursor-pointer select-none">
-                                        My dates are flexible
+                                        My budget is flexible
                                       </FormLabel>
                                     </FormItem>
                                   )}
                                 />
-                                <div className="flex-1 text-right text-sm min-h-[1.25rem] pr-1 flex items-center justify-end gap-2">
-                                  {!flexibleDates &&
-                                  totalDays &&
-                                  totalDays > 0 ? (
-                                    <>
-                                      <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                                      <span className="text-slate-200">
-                                        {totalDays}{" "}
-                                        {totalDays === 1 ? "Day" : "Days"}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <span>&nbsp;</span>
-                                  )}
-                                </div>
                               </div>
                             </div>
-                          ) : slot.key === "destination" ? (
+                          ) : field.key === "interests" ? (
+                            <>
+                              <label className="block font-semibold mb-1 mt-4">
+                                Interests
+                              </label>
+                              <div className="flex items-center w-full h-12">
+                                <HorizontalChipSelector
+                                  options={INTEREST_CHIPS}
+                                  value={
+                                    (form.watch("interests") ?? []) as string[]
+                                  }
+                                  onChange={(chips) =>
+                                    form.setValue("interests", chips)
+                                  }
+                                  placeholder="Select one or more interests"
+                                />
+                              </div>
+                            </>
+                          ) : field.key === "specialNeeds" ? (
                             <FormField
                               control={form.control}
-                              name="destination"
-                              render={({ field }) => (
+                              name="specialNeeds"
+                              render={({ field: formField }) => (
                                 <FormItem>
-                                  <FormLabel>{slot.label}</FormLabel>
+                                  <FormLabel>Special Needs</FormLabel>
                                   <FormControl>
                                     <Input
-                                      {...field}
-                                      value={destinationInputValue}
-                                      onChange={(e) => {
-                                        setDestinationInputValue(
-                                          e.target.value
-                                        );
-                                        field.onChange(e);
-                                      }}
-                                      placeholder={
-                                        destinationInputFocused ||
-                                        destinationInputValue
-                                          ? ""
-                                          : destinationDisplayed
-                                      }
-                                      className="w-full px-3 py-2 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
-                                      autoComplete="off"
-                                      onFocus={() =>
-                                        setDestinationInputFocused(true)
-                                      }
-                                      onBlur={() =>
-                                        setDestinationInputFocused(false)
-                                      }
+                                      {...formField}
+                                      placeholder="Accessibility, dietary restrictions, etc."
+                                      className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
                                     />
                                   </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          ) : slot.type === "input" ? (
-                            <FormField
-                              control={form.control}
-                              name={slot.key as any}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{slot.label}</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      {...field}
-                                      placeholder={
-                                        inputFocusStates[slot.key]
-                                          ? ""
-                                          : slot.placeholder
-                                      }
-                                      className="w-full px-3 py-2 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans text-left"
-                                      autoComplete="off"
-                                      disabled={
-                                        slot.key === "budget" && flexibleBudget
-                                      }
-                                      onFocus={() =>
-                                        setInputFocusStates((prev) => ({
-                                          ...prev,
-                                          [slot.key]: true,
-                                        }))
-                                      }
-                                      onBlur={() =>
-                                        setInputFocusStates((prev) => ({
-                                          ...prev,
-                                          [slot.key]: false,
-                                        }))
-                                      }
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          ) : slot.type === "chips" ? (
-                            <FormField
-                              control={form.control}
-                              name="groupType"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>{slot.label}</FormLabel>
-                                  <FormControl>
-                                    <GroupTypeChips
-                                      {...field}
-                                      value={field.value || ""}
-                                      options={
-                                        Array.isArray(slot.options)
-                                          ? slot.options
-                                          : []
-                                      }
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
+                                  <FormMessage className="text-rose-500" />
                                 </FormItem>
                               )}
                             />
                           ) : null}
                         </div>
                       ))}
-                    <Button
-                      type="submit"
-                      className="mt-2 px-6 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 w-full flex items-center justify-center gap-2 text-base"
-                      disabled={loading}
-                    >
-                      Continue <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                    {error && (
-                      <div className="mt-2 text-rose-400 text-sm">{error}</div>
-                    )}
-                  </form>
-                </Form>
+
+                      {/* Navigation buttons */}
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          aria-label="Go back"
+                          className="flex-1 px-4 py-2 text-sm h-10"
+                          onClick={() => {
+                            setNavDirection("back");
+                            setCurrentStep(2);
+                          }}
+                        >
+                          <ArrowLeft className="w-4 h-4 mr-1" /> Back
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="flex-1 px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-semibold text-sm h-10"
+                          onClick={() => {
+                            setNavDirection("forward");
+                            setCurrentStep(1);
+                            setIsNewChat(false);
+                            setMessages((prev) => [
+                              ...prev,
+                              {
+                                role: "assistant",
+                                content:
+                                  "No problem! Let's start planning your trip with the information you've already provided. What would you like to know?",
+                              },
+                            ]);
+                          }}
+                          disabled={loading}
+                        >
+                          Skip
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
+                          disabled={loading}
+                        >
+                          Finish <ArrowRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                      {error && (
+                        <div className="mt-2 text-rose-400 text-sm">
+                          {error}
+                        </div>
+                      )}
+                    </form>
+                  </Form>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Normal chat UI after initial slot filling */}
-          {!isNewChat && !showInitialSlots && !intentRejected && (
+          {/* Normal chat UI after steps */}
+          {currentStep === 1 && !isNewChat && !intentRejected && (
             <>
               {/* Chat messages */}
               <div className="flex-1 flex flex-col items-center overflow-y-auto pt-8 pb-32 mb-8 space-y-4 w-full">
@@ -982,19 +1476,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   ))}
                   {/* Chips for quick selection */}
                   {chipsToShow && (
-                    <div className="flex flex-wrap gap-2 justify-start mt-2">
-                      {chipsToShow.map((chip) => (
-                        <Button
-                          key={chip.value}
-                          size="sm"
-                          className="px-5 py-2 flex items-center justify-center gap-2 rounded-md bg-indigo-700/30 text-white border border-indigo-400/40 font-semibold text-base shadow hover:bg-indigo-700/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 transition-all duration-150"
-                          onClick={() => handleChipClick(chip.value)}
-                          disabled={loading}
-                          type="button"
-                        >
-                          {chip.label}
-                        </Button>
-                      ))}
+                    <div className="flex flex-col gap-3 mt-2">
+                      <div className="flex flex-wrap gap-2 justify-start">
+                        {chipsToShow.map((chip) => (
+                          <Button
+                            key={chip.value}
+                            size="sm"
+                            className="px-5 py-2 flex items-center justify-center gap-2 rounded-md border font-semibold text-base shadow focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 transition-all duration-150 bg-indigo-700/30 text-white border-indigo-400/40 hover:bg-indigo-700/50"
+                            onClick={() => handleChipClick(chip.value)}
+                            disabled={loading}
+                            type="button"
+                          >
+                            {chip.label}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {loading && (
@@ -1023,7 +1519,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             aria-label="Retry"
                             className="ml-2 text-rose-200 hover:text-white focus:outline-none"
                             onClick={(e) =>
-                              handleSubmit(e as any, lastUserMessage)
+                              handleSubmit(
+                                e as React.FormEvent,
+                                lastUserMessage
+                              )
                             }
                             style={{
                               display: "flex",
@@ -1050,7 +1549,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 loading={loading}
                 handleSubmit={handleSubmit}
                 fileInputRef={fileInputRef}
-                displayed={displayed}
+                displayed=""
                 sidebarWidth={sidebarWidth}
                 maxWidth={maxWidth}
               />
@@ -1094,7 +1593,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 loading={loading}
                 handleSubmit={handleSubmit}
                 fileInputRef={fileInputRef}
-                displayed={displayed}
+                displayed=""
                 sidebarWidth={sidebarWidth}
                 maxWidth={maxWidth}
               />
@@ -1108,11 +1607,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
 // Single-select chips for group type
 const GroupTypeChips: React.FC<{
-  name: string;
   options: string[];
   value: string;
   onChange: (value: string) => void;
-}> = ({ name, options, value, onChange }) => {
+}> = ({ options, value, onChange }) => {
   return (
     <div className="flex gap-3 w-full">
       {options.map((opt) => (
@@ -1133,12 +1631,113 @@ const GroupTypeChips: React.FC<{
             boxShadow: "none",
             outline: "none",
           }}
-          onClick={() => onChange(opt.toLowerCase())}
+          onClick={() => onChange(opt)}
           tabIndex={0}
         >
           {opt}
         </Button>
       ))}
+    </div>
+  );
+};
+
+const Stepper: React.FC<{ step: 1 | 2 | 3 }> = ({ step }) => {
+  const steps = [
+    { label: "Choose Trip Type" },
+    { label: "Basic Details" },
+    { label: "Preferences & Extras" },
+  ];
+
+  return (
+    <div className="w-2xl max-w-full mx-auto px-4 py-6">
+      <div className="relative w-full">
+        {/* Background line - from center of first circle to center of last circle */}
+        <div
+          className="absolute top-5 h-0.5 bg-slate-700"
+          style={{
+            left: "20px", // Half of circle width (40px / 2)
+            right: "20px", // Half of circle width (40px / 2)
+          }}
+        />
+
+        {/* Progress line - from center of first circle to center of current step */}
+        <div
+          className="absolute top-5 h-0.5 bg-indigo-500 transition-all duration-500 ease-out"
+          style={
+            step === steps.length
+              ? { left: "20px", right: "20px" }
+              : {
+                  left: "20px",
+                  width: `calc(${
+                    ((step - 1) / (steps.length - 1)) * 100
+                  }% - 40px + 20px)`,
+                }
+          }
+        />
+
+        {/* Steps */}
+        <div className="relative flex justify-between">
+          {steps.map((stepItem, index) => {
+            const stepNumber = index + 1;
+            const isCompleted = step > stepNumber;
+            const isActive = step === stepNumber;
+
+            return (
+              <div key={stepItem.label} className="flex flex-col items-center">
+                {/* Step circle */}
+                <div
+                  className={`
+                    w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold
+                    transition-all duration-200 relative z-10
+                    ${
+                      isCompleted
+                        ? "bg-indigo-600 text-white border-2 border-indigo-500"
+                        : isActive
+                        ? "bg-indigo-600 text-white border-2 border-indigo-400"
+                        : "bg-slate-900 text-slate-400 border-2 border-slate-600"
+                    }
+                  `}
+                  aria-current={isActive ? "step" : undefined}
+                >
+                  {isCompleted ? (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  ) : (
+                    stepNumber
+                  )}
+                </div>
+
+                {/* Step label */}
+                <div
+                  className={`
+                    mt-3 text-xs font-medium text-center max-w-20
+                    ${
+                      isActive
+                        ? "text-indigo-300"
+                        : isCompleted
+                        ? "text-indigo-200"
+                        : "text-slate-400"
+                    }
+                  `}
+                >
+                  {stepItem.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

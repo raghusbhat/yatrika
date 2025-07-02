@@ -76,15 +76,6 @@ const defaultAddress = (geo, country) => ({
   country: geo?.country || country || "",
   phone: "",
 });
-const fetchGeo = async () => {
-  try {
-    const res = await fetch("https://ipapi.co/json/");
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-};
 
 function getUnitsForMetric(countryCode: string) {
   // US, Liberia, Myanmar use imperial

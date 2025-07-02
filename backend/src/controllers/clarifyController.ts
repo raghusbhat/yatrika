@@ -4,9 +4,11 @@ import { ClarificationState } from "../utils/validation";
 
 export const startClarification = async (req: Request, res: Response) => {
   try {
-    const { input, state } = req.body as {
+    const { input, state, messages, userProfile } = req.body as {
       input: string;
       state: ClarificationState;
+      messages?: Array<{ role: string; content: string }>;
+      userProfile?: Record<string, any>;
     };
     console.log("[clarifyController] Received from frontend:", {
       input,
@@ -19,7 +21,20 @@ export const startClarification = async (req: Request, res: Response) => {
       });
       return res.status(400).json({ error: "Invalid input or state." });
     }
-    const result = await runClarificationGraph(input, state);
+    // Use the conversation history from frontend, or build from state as fallback
+    const conversationHistory =
+      messages ||
+      (state.inputHistory || []).map((msg, index) => ({
+        role: index % 2 === 0 ? "user" : "assistant",
+        content: msg,
+      }));
+
+    const result = await runClarificationGraph(
+      input,
+      state,
+      conversationHistory,
+      userProfile
+    );
     console.log("[clarifyController] Responding with:", result);
     res.json(result);
   } catch (err) {

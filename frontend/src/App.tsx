@@ -54,14 +54,26 @@ function RouterErrorBoundary() {
 
 function App() {
   const [collapsed, setCollapsed] = useState(false);
+  const [resetTrigger, setResetTrigger] = useState(0);
+
   // Sidebar width in px
   const sidebarWidth = collapsed ? 72 : 288;
+
+  // Function to trigger chat reset
+  const triggerChatReset = () => {
+    console.log("[App] Triggering chat reset");
+    setResetTrigger((prev) => prev + 1);
+  };
 
   return (
     <LocaleProvider>
       <Router>
         <div className="min-h-screen bg-slate-950 font-sans flex">
-          <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+          <Sidebar
+            collapsed={collapsed}
+            setCollapsed={setCollapsed}
+            onTriggerReset={triggerChatReset}
+          />
           <motion.main
             animate={{ width: `calc(100vw - ${sidebarWidth}px)` }}
             className="flex-1 flex flex-col items-center justify-between transition-all duration-300 ml-0"
@@ -73,8 +85,8 @@ function App() {
                   path="/"
                   element={
                     <ChatInterface
-                      sidebarCollapsed={collapsed}
                       sidebarWidth={sidebarWidth}
+                      resetTrigger={resetTrigger}
                     />
                   }
                   errorElement={<RouterErrorBoundary />}

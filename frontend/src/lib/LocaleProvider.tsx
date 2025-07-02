@@ -32,20 +32,23 @@ export const LocaleProvider: React.FC<{ children: React.ReactNode }> = ({
   const [bannerCountry, setBannerCountry] = useState<string>("IN");
 
   useEffect(() => {
-    const stored = localStorage.getItem(LOCALE_KEY);
+    const storedCountry = localStorage.getItem(LOCALE_KEY);
+    const storedCity = localStorage.getItem("user_city");
     const consent = localStorage.getItem(LOCALE_CONSENT_KEY);
-    if (stored) {
-      setCountryState(stored);
+    if (storedCountry && storedCity) {
+      setCountryState(storedCountry);
       setShowBanner(false);
     } else {
       fetch("https://ipapi.co/json/")
         .then((res) => res.json())
         .then((data) => {
-          const guessed =
+          const guessedCountry =
             data && data.country ? data.country.toUpperCase() : "IN";
-          setBannerCountry(guessed);
-          setCountryState(guessed);
-          localStorage.setItem(LOCALE_KEY, guessed);
+          const guessedCity = data && data.city ? data.city : "";
+          setBannerCountry(guessedCountry);
+          setCountryState(guessedCountry);
+          localStorage.setItem(LOCALE_KEY, guessedCountry);
+          if (guessedCity) localStorage.setItem("user_city", guessedCity);
         })
         .catch(() => {
           setBannerCountry("IN");

@@ -36,9 +36,14 @@ const EXPANDED_WIDTH = 288; // px
 interface SidebarProps {
   collapsed: boolean;
   setCollapsed: (c: boolean) => void;
+  onTriggerReset?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  collapsed,
+  setCollapsed,
+  onTriggerReset,
+}) => {
   const navigate = useNavigate();
 
   return (
@@ -93,6 +98,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
             className={`min-w-0 min-h-0 bg-indigo-500 text-indigo-50 flex items-center justify-center ${
               collapsed ? "" : "w-full gap-2 px-2"
             }`}
+            onClick={() => {
+              console.log("[Sidebar] New Itinerary clicked - triggering reset");
+              if (onTriggerReset) {
+                onTriggerReset();
+              }
+              navigate("/");
+            }}
           >
             <AnimatePresence initial={false}>
               {!collapsed && (
@@ -191,7 +203,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, setCollapsed }) => {
             icon={<Home className="w-4 h-4" />}
             label="Home"
             collapsed={collapsed}
-            onClick={() => navigate("/")}
+            onClick={() => {
+              console.log("[Sidebar] Home clicked - triggering reset");
+              if (onTriggerReset) {
+                onTriggerReset();
+              }
+              navigate("/");
+            }}
           />
           <SidebarNavItem
             icon={<HelpCircle className="w-4 h-4" />}
