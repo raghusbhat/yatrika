@@ -37,67 +37,67 @@ interface SidebarProps {
   collapsed: boolean;
   setCollapsed: (c: boolean) => void;
   onTriggerReset?: () => void;
+  isMobile?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   setCollapsed,
   onTriggerReset,
+  isMobile = false,
 }) => {
   const navigate = useNavigate();
 
+  // Only show collapse/expand and logo on desktop
+  const showCollapse = !isMobile;
+  const showLogo = !isMobile;
+  const sidebarWidth = collapsed ? 72 : 288;
+
   return (
     <motion.aside
-      animate={{ width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
-      transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-      className="h-full z-40 bg-slate-950 border-r border-slate-900/50 flex flex-col justify-between fixed top-0 left-0"
-      style={{ minWidth: COLLAPSED_WIDTH, maxWidth: EXPANDED_WIDTH }}
+      initial={false}
+      animate={{ width: sidebarWidth }}
+      transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
+      className={`h-full w-full box-border z-50 bg-slate-950 border-r border-slate-900/50 flex flex-col pb-6 ${
+        isMobile ? "w-64" : ""
+      }`}
+      style={{
+        minWidth: isMobile ? 256 : 72,
+        maxWidth: isMobile ? 256 : 288,
+        overflowX: "hidden",
+      }}
     >
-      {/* Top: Logo, Collapse Button, and New Itinerary */}
-      <div>
-        <div className="flex items-center py-4 px-2 mb-2 border-b border-slate-900 justify-between relative">
+      {/* Top section */}
+      <div className="w-full box-border">
+        <div className="flex items-center py-4 mb-2 justify-between relative w-full box-border">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded flex items-center justify-center">
-              <img src="../../../public/logo.svg" alt="logo" className="ml-7" />
-            </div>
-            <AnimatePresence initial={false}>
-              {!collapsed && (
-                <motion.span
-                  key="yatrika-text"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.18, ease: "easeInOut" }}
-                  className="text-2xl font-bold text-slate-400 shadow-2xl mx-4"
-                >
-                  Yātrika
-                </motion.span>
-              )}
-            </AnimatePresence>
+            {/* Logo removed - now in TopBar */}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute -right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary p-0 h-8 w-8 flex items-center justify-center"
-            onClick={() => setCollapsed(!collapsed)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronLeft className="w-4 h-4" />
-            )}
-          </Button>
+          {showCollapse && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute -right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary p-0 h-8 w-8 flex items-center justify-center"
+              onClick={() => setCollapsed(!collapsed)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
+            </Button>
+          )}
         </div>
         <div
-          className={`flex flex-col gap-2 px-2 py-3${
+          className={`flex flex-col gap-2 py-3 px-3${
             collapsed ? " items-center" : ""
-          }`}
+          } w-full box-border`}
         >
           <Button
-            className={`min-w-0 min-h-0 bg-indigo-500 text-indigo-50 flex items-center justify-center ${
-              collapsed ? "" : "w-full gap-2 px-2"
-            }`}
+            className={`w-full min-w-0 min-h-0 bg-indigo-500 text-indigo-50 flex items-center justify-center transition-all duration-300 ${
+              collapsed ? "!w-12 !h-12 p-0" : "gap-2"
+            } box-border`}
             onClick={() => {
               console.log("[Sidebar] New Itinerary clicked - triggering reset");
               if (onTriggerReset) {
@@ -113,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.18, ease: "easeInOut" }}
+                  transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
                   className="text-sm"
                 >
                   New Itinerary
@@ -131,73 +131,91 @@ const Sidebar: React.FC<SidebarProps> = ({
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.18, ease: "easeInOut" }}
+              transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
             >
               <Input
                 type="text"
                 placeholder="Search conversations..."
-                className="bg-slate-900 border-none placeholder:text-center text-slate-200 placeholder-slate-400 rounded-lg px-3 my-2 py-4 text-xs focus:ring focus:ring-indigo-500/50"
+                className="w-full box-border bg-slate-900 border-none placeholder:text-center text-slate-200 placeholder-slate-400 rounded-lg px-3 my-2 py-4 text-xs focus:ring focus:ring-indigo-500/50"
               />
             </motion.div>
           )}
         </div>
-        <div className={`pt-3 pb-1 ${collapsed ? "px-1" : "px-4"}`}>
-          {!collapsed && (
-            <motion.div
-              key="recent-itineraries"
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -8 }}
-              transition={{ duration: 0.18, ease: "easeInOut" }}
-              className="text-xs text-slate-400 mb-4"
-            >
-              Recent Itineraries
-            </motion.div>
-          )}
-          <div className="flex flex-col gap-1">
-            {itineraries.map((it, idx) => (
+      </div>
+
+      {/* Middle section: Recent Itineraries, flex-1, min-h-0, overflow-hidden */}
+      <div
+        className={`pt-3 pb-1 px-3${
+          collapsed ? " px-1" : ""
+        } flex-1 min-h-0 overflow-hidden w-full box-border relative`}
+      >
+        {collapsed ? (
+          /* Show only map pin icons when collapsed */
+          <div className="flex flex-col gap-1 items-center">
+            {itineraries.slice(0, 4).map((_, idx) => (
               <div
                 key={idx}
-                className={`flex items-center gap-2 p-1 rounded-lg hover:bg-indigo-500/20 cursor-pointer transition group ${
-                  collapsed ? "justify-center py-2" : ""
-                }`}
+                className="w-12 h-12 rounded-lg flex items-center justify-center hover:bg-indigo-500/20 cursor-pointer transition"
+                style={{ background: "#273043" }}
               >
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ background: "#273043" }}
-                >
-                  <MapPin className="w-4 h-4 text-slate-400" />
-                </div>
-                <AnimatePresence initial={false}>
-                  {!collapsed && (
-                    <motion.div
-                      key={`itinerary-title-${idx}`}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -8 }}
-                      transition={{ duration: 0.18, ease: "easeInOut" }}
-                      className="flex flex-col"
+                <MapPin className="w-4 h-4 text-slate-400" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Show full itinerary list when expanded */
+          <AnimatePresence>
+            <motion.div
+              key="recent-itineraries"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden h-full"
+            >
+              <div className="text-xs text-slate-400 mb-4">
+                Recent Itineraries
+              </div>
+              <div
+                className="flex flex-col gap-1 relative"
+                style={{ maxHeight: "100%" }}
+              >
+                {itineraries.map((it, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 px-3 p-1 rounded-lg hover:bg-indigo-500/20 cursor-pointer transition group"
+                    style={{ minHeight: 48 }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: "#273043" }}
                     >
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <div className="flex flex-col">
                       <span className="text-xs font-bold text-white leading-tight">
                         {it.title}
                       </span>
                       <span className="text-[10px] text-slate-400 leading-tight">
                         {it.subtitle}
                       </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    </div>
+                  </div>
+                ))}
+                {/* Fade-out gradient if content overflows */}
+                <div className="pointer-events-none absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-slate-950 to-transparent" />
               </div>
-            ))}
-          </div>
-        </div>
+            </motion.div>
+          </AnimatePresence>
+        )}
       </div>
-      {/* Navigation and Profile */}
-      <div>
+
+      {/* Bottom section: nav and avatar, always at bottom, w-full, box-border, with proper spacing */}
+      <div className="w-full box-border pb-4">
         <div
-          className={`border-t-[0.2px] mx-4 opacity-50 flex flex-col gap-2 ${
-            collapsed ? "px-1 py-2" : "px-2 py-3"
-          }`}
+          className={`flex flex-col gap-2 px-3 mb-4${
+            collapsed ? " items-center" : ""
+          } w-full box-border`}
         >
           <SidebarNavItem
             icon={<Home className="w-4 h-4" />}
@@ -228,8 +246,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           />
         </div>
         <div
-          className={`border-t-[0.2px] border-indigo-950 flex items-center gap-2 ${
-            collapsed ? "px-2 py-4 justify-center" : "px-2 py-4"
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-all duration-300 text-white w-full box-border mb-2 ${
+            collapsed ? "justify-center" : "justify-start"
           }`}
         >
           <Popover>
@@ -303,12 +321,12 @@ const SidebarNavItem: React.FC<{
   onClick?: () => void;
 }> = ({ icon, label, collapsed, onClick }) => (
   <div
-    className={`flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition text-white justify-${
-      collapsed ? "center" : "start"
+    className={`flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer transition-all duration-300 text-white w-full box-border ${
+      collapsed ? "justify-center" : "justify-start"
     }`}
     onClick={onClick}
   >
-    {icon}
+    <div className="flex-shrink-0">{icon}</div>
     <AnimatePresence initial={false}>
       {!collapsed && (
         <motion.span
@@ -316,7 +334,7 @@ const SidebarNavItem: React.FC<{
           initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -8 }}
-          transition={{ duration: 0.18, ease: "easeInOut" }}
+          transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
           className="text-xs font-semibold"
         >
           {label}

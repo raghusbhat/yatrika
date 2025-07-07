@@ -23,6 +23,10 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  DollarSign,
+  UserIcon,
+  Check,
 } from "lucide-react";
 import { LuBackpack } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
@@ -148,11 +152,7 @@ const INITIAL_CHIPS = [
   {
     label: "Backpacking",
     value: "Backpacking",
-    icon: (
-      <span className="mr-2">
-        <LuBackpack size={16} />
-      </span>
-    ),
+    icon: <LuBackpack size={16} />,
   },
   {
     label: "Family Vacation",
@@ -275,31 +275,15 @@ const HorizontalChipSelector: React.FC<{
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, scrollLeft: 0 });
 
-  // Log chip count and container width on mount and resize
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    console.log("[Chips] Rendered chip count:", options.length);
-    console.log(
-      "[Chips] Container clientWidth:",
-      el.clientWidth,
-      "scrollWidth:",
-      el.scrollWidth
-    );
-    const handleResize = () => {
-      console.log(
-        "[Chips] Window resized. Container clientWidth:",
-        el.clientWidth,
-        "scrollWidth:",
-        el.scrollWidth
-      );
-    };
+    const handleResize = () => {};
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [options.length]);
 
   const handleChipClick = (chip: string) => {
-    console.log("[Chips] Chip clicked:", chip);
     if (value.includes(chip)) {
       onChange(value.filter((v) => v !== chip));
     } else {
@@ -307,41 +291,21 @@ const HorizontalChipSelector: React.FC<{
     }
   };
 
-  // Update fade indicators based on scroll position
   const updateFadeIndicators = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-
     const { scrollLeft, scrollWidth, clientWidth } = el;
-    // Set fade indicators and enable/disable chevrons
-    const newShowLeftFade = scrollLeft > 0;
-    const newShowRightFade = Math.ceil(scrollLeft + clientWidth) < scrollWidth;
-    setShowLeftFade(newShowLeftFade);
-    setShowRightFade(newShowRightFade);
-
-    console.log("Scroll State:", {
-      scrollLeft,
-      scrollWidth,
-      clientWidth,
-      newShowLeftFade,
-      newShowRightFade,
-    });
+    setShowLeftFade(scrollLeft > 0);
+    setShowRightFade(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
   }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-
-    // Initial check
     setTimeout(updateFadeIndicators, 50);
-
-    // Add scroll listener
     el.addEventListener("scroll", updateFadeIndicators);
     window.addEventListener("resize", updateFadeIndicators);
-
-    // Add mouse wheel horizontal scrolling for desktop
     const handleWheel = (e: WheelEvent) => {
-      // If scrolling vertically but shift is held, or scrolling horizontally
       if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
         e.preventDefault();
         el.scrollBy({
@@ -350,10 +314,7 @@ const HorizontalChipSelector: React.FC<{
         });
       }
     };
-
     el.addEventListener("wheel", handleWheel, { passive: false });
-
-    // Add mouse drag scrolling for desktop
     const handleMouseDown = (e: MouseEvent) => {
       setIsDragging(true);
       setDragStart({
@@ -361,10 +322,8 @@ const HorizontalChipSelector: React.FC<{
         scrollLeft: el.scrollLeft,
       });
       if (el) el.style.cursor = "grabbing";
-      console.log("[Chips] Drag start", { x: e.pageX });
       e.preventDefault();
     };
-
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       e.preventDefault();
@@ -372,33 +331,21 @@ const HorizontalChipSelector: React.FC<{
       const walk = (x - dragStart.x) * 2;
       if (el) {
         el.scrollLeft = dragStart.scrollLeft - walk;
-        console.log("[Chips] Drag move", {
-          x,
-          walk,
-          scrollLeft: el.scrollLeft,
-        });
       }
     };
-
     const handleMouseUp = () => {
       setIsDragging(false);
       if (el) el.style.cursor = "grab";
-      console.log("[Chips] Drag end");
     };
-
     const handleMouseLeave = () => {
       setIsDragging(false);
       if (el) el.style.cursor = "grab";
     };
-
     el.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
     el.addEventListener("mouseleave", handleMouseLeave);
-
-    // Set initial cursor
     el.style.cursor = "grab";
-
     return () => {
       el.removeEventListener("scroll", updateFadeIndicators);
       el.removeEventListener("wheel", handleWheel);
@@ -408,43 +355,30 @@ const HorizontalChipSelector: React.FC<{
       document.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("resize", updateFadeIndicators);
     };
-  }, [updateFadeIndicators, options.length]);
+  }, [updateFadeIndicators, options.length, isDragging, dragStart]);
 
   const scrollToDirection = (direction: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    console.log(`[Chevron] Clicked: ${direction}`);
-    const chipWidth = 120; // Approximate chip width + gap
-    const scrollAmount = chipWidth * 2; // Scroll by 2 chips
+    const chipWidth = 120;
+    const scrollAmount = chipWidth * 2;
     el.scrollBy({
       left: direction === "left" ? -scrollAmount : scrollAmount,
       behavior: "smooth",
     });
-    setTimeout(() => {
-      console.log("[Chevron] After scroll:", {
-        scrollLeft: el.scrollLeft,
-        scrollWidth: el.scrollWidth,
-        clientWidth: el.clientWidth,
-      });
-    }, 300);
   };
 
   return (
-    <div className="w-full flex items-center h-12">
-      {/* Left Chevron */}
+    <div className="w-full flex items-center h-10 sm:h-12">
       <button
         type="button"
         aria-label="Scroll left"
-        className="h-8 w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer mr-2"
+        className="h-6 w-6 sm:h-8 sm:w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer mr-1.5 sm:mr-2"
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
-        onClick={() => {
-          console.log("[Chevron] Clicked: left");
-          scrollToDirection("left");
-        }}
+        onClick={() => scrollToDirection("left")}
       >
-        <ChevronLeft className="w-4 h-4 text-slate-200" />
+        <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 text-slate-200" />
       </button>
-      {/* Scrollable Chips */}
       <div
         ref={scrollRef}
         className="overflow-x-auto no-scrollbar flex-1 h-full"
@@ -454,14 +388,14 @@ const HorizontalChipSelector: React.FC<{
           scrollSnapType: "x mandatory",
         }}
       >
-        <div className="flex gap-3 w-max items-center h-full px-1">
+        <div className="flex gap-2 sm:gap-3 w-max items-center h-full px-1">
           {options.map((chip) => (
             <button
               key={chip}
               type="button"
-              className={`px-4 py-2 rounded-lg border text-xs font-medium transition-all duration-200 cursor-pointer select-none flex-shrink-0 whitespace-nowrap min-w-fit scroll-snap-align-start h-8 flex items-center justify-center ${
+              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-md border text-[10px] sm:text-xs font-medium transition-all duration-200 cursor-pointer select-none flex-shrink-0 whitespace-nowrap min-w-fit scroll-snap-align-start h-6 sm:h-7 flex items-center justify-center ${
                 value.includes(chip)
-                  ? "bg-indigo-600 text-white border-indigo-500 shadow-lg scale-105"
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-md scale-105"
                   : "bg-indigo-700/25 text-slate-200 border-indigo-400/40 hover:bg-indigo-700/50 hover:border-indigo-400/60"
               }`}
               onClick={() => handleChipClick(chip)}
@@ -474,20 +408,173 @@ const HorizontalChipSelector: React.FC<{
           ))}
         </div>
       </div>
-      {/* Right Chevron */}
       <button
         type="button"
         aria-label="Scroll right"
-        className="h-8 w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer"
+        className="h-6 w-6 sm:h-8 sm:w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer ml-1.5 sm:ml-2"
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
-        onClick={() => {
-          console.log("[Chevron] Clicked: right");
-          scrollToDirection("right");
-        }}
+        onClick={() => scrollToDirection("right")}
       >
-        <ChevronRight className="w-4 h-4 text-slate-200" />
+        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-slate-200" />
       </button>
     </div>
+  );
+};
+
+// Add new transition variants for form-to-conversation
+const conversationTransitionVariants = {
+  initial: {
+    opacity: 0,
+    y: 20,
+    scale: 0.95,
+  },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+  },
+  exit: {
+    opacity: 0,
+    y: -20,
+    scale: 0.95,
+  },
+};
+
+// Trip Summary Card Component
+const TripSummaryCard: React.FC<{
+  tripData: Partial<ClarificationState>;
+  tripTheme?: string;
+  formData?: any;
+}> = ({ tripData, tripTheme, formData }) => {
+  const formatDateRange = () => {
+    if (formData?.flexibleDates) {
+      return { dateRange: "Flexible dates", days: null };
+    }
+    if (formData?.startDate && formData?.endDate) {
+      const start = format(new Date(formData.startDate), "MMM dd");
+      const end = format(new Date(formData.endDate), "MMM dd, yyyy");
+      const days =
+        differenceInCalendarDays(
+          new Date(formData.endDate),
+          new Date(formData.startDate)
+        ) + 1;
+      return {
+        dateRange: `${start} - ${end}`,
+        days: `${days} ${days === 1 ? "day" : "days"}`,
+      };
+    }
+    return { dateRange: "Dates not specified", days: null };
+  };
+
+  const formatInterests = () => {
+    if (!formData?.interests || formData.interests.length === 0) return null;
+    return (
+      formData.interests.slice(0, 4).join(", ") +
+      (formData.interests.length > 4 ? "..." : "")
+    );
+  };
+
+  const dateInfo = formatDateRange();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="w-full max-w-[98%] mx-0 bg-gradient-to-br from-indigo-900/40 to-slate-800/60 border border-indigo-500/30 rounded-xl p-4 sm:p-5 shadow-lg backdrop-blur-sm"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center">
+          <Check className="w-4 h-4 text-white" />
+        </div>
+        <h3 className="text-base sm:text-lg font-semibold text-white">
+          Trip Details Collected
+        </h3>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 text-sm">
+        {tripTheme && (
+          <div className="flex items-center gap-2 text-slate-300">
+            <Zap className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span className="text-slate-400">Type:</span>
+            <span className="font-semibold text-white">{tripTheme}</span>
+          </div>
+        )}
+
+        {(tripData.destination || formData?.destination) && (
+          <div className="flex items-center gap-2 text-slate-300">
+            <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span className="text-slate-400">Destination:</span>
+            <span className="font-semibold text-white">
+              {tripData.destination || formData?.destination}
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-start gap-2 text-slate-300">
+          <Calendar className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+          <span className="text-slate-400 flex-shrink-0">Dates:</span>
+          <div className="flex flex-col">
+            <span className="font-semibold text-white break-words">
+              {dateInfo.dateRange}
+            </span>
+            {dateInfo.days && (
+              <span className="text-xs text-slate-400 mt-0.5">
+                {dateInfo.days}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {(tripData.groupType || formData?.groupType) && (
+          <div className="flex items-center gap-2 text-slate-300">
+            <UserIcon className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span className="text-slate-400">Group:</span>
+            <span className="font-semibold text-white capitalize">
+              {tripData.groupType || formData?.groupType}
+            </span>
+          </div>
+        )}
+
+        {(tripData.budget || formData?.budget) && !formData?.flexibleBudget && (
+          <div className="flex items-center gap-2 text-slate-300">
+            <DollarSign className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span className="text-slate-400">Budget:</span>
+            <span className="font-semibold text-white">
+              {tripData.budget || formData?.budget}
+            </span>
+          </div>
+        )}
+
+        {formData?.flexibleBudget && (
+          <div className="flex items-center gap-2 text-slate-300">
+            <DollarSign className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+            <span className="text-slate-400">Budget:</span>
+            <span className="font-semibold text-white">Flexible</span>
+          </div>
+        )}
+      </div>
+
+      {formatInterests() && (
+        <div className="mt-3 pt-3 border-t border-slate-700/50">
+          <div className="flex items-start gap-2 text-slate-300">
+            <Heart className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="text-slate-400">Interests:</span>
+              <div className="font-semibold text-white text-xs mt-1">
+                {formatInterests()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 pt-3 border-t border-slate-700/50">
+        <p className="text-xs text-slate-400 text-center">
+          Ready to create your personalized itinerary!
+        </p>
+      </div>
+    </motion.div>
   );
 };
 
@@ -500,7 +587,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [clarificationState, setClarificationState] =
     useState<ClarificationState>(initialClarificationState);
   const [messages, setMessages] = useState<
-    { role: "user" | "assistant"; content: string }[]
+    {
+      role: "user" | "assistant";
+      content: string;
+      component?: React.ReactNode;
+    }[]
   >([
     {
       role: "assistant",
@@ -519,6 +610,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [extractedSlots, setExtractedSlots] = useState<
     Partial<ClarificationState>
   >({});
+
+  // Add transition state
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showStepper, setShowStepper] = useState(true);
+  const [transitionPhase, setTransitionPhase] = useState<
+    "form" | "card" | "conversation"
+  >("form");
 
   const [initialChip, setInitialChip] = useState<string | null>(null);
   const [selectedChip, setSelectedChip] = useState<string | null>(null);
@@ -581,9 +679,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           : typeof userCity === "string"
           ? userCity
           : "",
-      flexibleBudget: false,
-      flexibleDates: false,
-      specialNeeds: "",
+      flexibleBudget:
+        extractedSlots.flexibleBudget !== undefined
+          ? extractedSlots.flexibleBudget
+          : false,
+      flexibleDates:
+        extractedSlots.flexibleDates !== undefined
+          ? extractedSlots.flexibleDates
+          : false,
+      specialNeeds: extractedSlots.specialNeeds || "",
     });
   }, [extractedSlots, form]);
 
@@ -743,7 +847,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return STEP_2_FIELDS;
   }, [initialChip]);
 
-  // Reset function to restore initial state
+  // Enhanced reset function
   const resetChat = useCallback(() => {
     console.log("[ChatInterface] Resetting chat to initial state");
 
@@ -765,6 +869,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setExtractedSlots({});
     setInitialChip(null);
     setSelectedChip(null);
+    setIsTransitioning(false);
+    setShowStepper(true);
+    setTransitionPhase("form");
 
     // Reset form
     const userCity = localStorage.getItem("user_city") || "";
@@ -815,361 +922,483 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   ]);
 
   return (
-    <main className="min-h-screen  flex flex-col bg-full">
-      <section className="flex-1 flex flex-col w-full h-full items-center justify-center">
-        <div className="relative flex flex-col w-full h-full max-w-full py-0 items-center justify-center overflow-hidden">
-          {/* Render Stepper above AnimatePresence, so it never unmounts */}
-          <Stepper step={currentStep as 1 | 2 | 3} />
-          <AnimatePresence custom={navDirection} mode="wait" initial={false}>
-            {/* Step 1: Choose Trip Type */}
-            {currentStep === 1 && isNewChat && !intentRejected && (
+    <main className="h-full flex flex-col box-border overflow-hidden">
+      <section className="flex-1 flex flex-col w-full h-full items-center box-border overflow-hidden">
+        <div className="relative flex flex-col w-full max-w-full py-2 sm:py-0 items-center h-full box-border overflow-hidden">
+          {/* Conditionally render Stepper with smooth transition */}
+          <AnimatePresence>
+            {showStepper && (
               <motion.div
-                key="step-1"
-                custom={navDirection}
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.4, type: "tween", ease: "easeInOut" }}
-                className="flex flex-col items-center justify-center w-full h-full pt-4 px-0"
+                initial={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{
+                  opacity: 0,
+                  y: -20,
+                  height: 0,
+                  marginBottom: 0,
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="w-full flex justify-center items-center flex-shrink-0"
               >
-                <div className="mb-4 text-lg font-medium text-slate-100 text-center w-full">
-                  What kind of journey are you dreaming of?
-                </div>
-                <div className="w-full max-w-2xl mx-auto flex flex-col gap-5 px-4">
-                  <div className="grid grid-cols-3 gap-3 w-full">
-                    {INITIAL_CHIPS.map((chip) => (
-                      <Button
-                        key={chip.value}
-                        size="lg"
-                        className={`px-3 py-4 flex items-center justify-center gap-2 rounded-md border font-semibold text-xs shadow-lg transition-all duration-200 min-h-[3.5rem] text-center break-words hyphens-auto ${
-                          selectedChip === chip.value
-                            ? "bg-indigo-600 text-white border-indigo-500 shadow-lg"
-                            : "bg-indigo-700/30 text-white border-indigo-400/40 hover:bg-indigo-700/50 hover:border-indigo-400/60"
-                        }`}
-                        style={{
-                          outline: "none",
-                          boxShadow:
-                            selectedChip === chip.value
-                              ? "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
-                              : "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-                        }}
-                        onClick={() => handleInitialChipClick(chip.value)}
-                        disabled={loading}
-                        type="button"
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          {chip.icon}
-                          <span className="leading-tight text-center whitespace-normal">
-                            {chip.label}
-                          </span>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-
-                  {/* Navigation buttons */}
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="flex-1 px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-semibold text-sm h-10"
-                      onClick={() => {
-                        setNavDirection("forward");
-                        setCurrentStep(2);
-                      }}
-                      disabled={loading}
-                    >
-                      Skip
-                    </Button>
-                    <div className="flex-1">
-                      {!selectedChip && currentStep === 1 ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="w-full block">
-                              <Button
-                                type="button"
-                                className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
-                                disabled={!selectedChip || loading}
-                                onClick={handleStep1Continue}
-                              >
-                                Continue <ArrowRight className="w-4 h-4 ml-1" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent
-                            side="top"
-                            className="max-w-xs text-center"
-                          >
-                            Please select a trip type to continue.
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Button
-                          type="button"
-                          className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
-                          disabled={!selectedChip || loading}
-                          onClick={handleStep1Continue}
-                        >
-                          Continue <ArrowRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {error && (
-                    <div className="mt-2 text-rose-400 text-sm text-center">
-                      {error}
-                    </div>
-                  )}
+                <div className="w-full max-w-2xl px-3 sm:px-4">
+                  <Stepper step={currentStep as 1 | 2 | 3} />
                 </div>
               </motion.div>
             )}
+          </AnimatePresence>
 
-            {/* Step 2: Basic Details */}
-            {currentStep === 2 && !intentRejected && (
-              <motion.div
-                key="step-2"
-                custom={navDirection}
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.4, type: "tween", ease: "easeInOut" }}
-                className="flex flex-col items-center justify-center w-full h-full pt-4 px-0"
-              >
-                <div className="mb-4 text-lg font-semibold text-slate-100 text-center w-full">
-                  To craft your perfect itinerary, could you share a few more
-                  trip details?
-                </div>
-                <Form {...form}>
-                  <form
-                    className="w-full max-w-2xl mx-auto flex flex-col gap-5 px-4"
-                    onSubmit={form.handleSubmit(async (values) => {
-                      // Just move to step 3, don't submit to backend yet
-                      const processedValues: Partial<ClarificationState> = {
-                        destination: values.destination,
-                        source: values.source,
-                        groupType:
-                          values.groupType as ClarificationState["groupType"],
-                        startDate: values.startDate
-                          ? format(values.startDate, "yyyy-MM-dd")
-                          : undefined,
-                        endDate: values.endDate
-                          ? format(values.endDate, "yyyy-MM-dd")
-                          : undefined,
-                        budget: values.budget,
-                        interests: values.interests || [],
-                        specialNeeds: values.specialNeeds,
-                        flexibleDates: values.flexibleDates,
-                      };
+          <div className="relative w-full h-full overflow-hidden">
+            <AnimatePresence custom={navDirection} mode="wait" initial={false}>
+              {/* Form fade out - blank screen to prevent conversation flash */}
+              {isTransitioning && transitionPhase === "form" && (
+                <motion.div
+                  key="form-fadeout"
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.1 }}
+                  className="absolute inset-0 w-full h-full bg-transparent"
+                />
+              )}
 
-                      setExtractedSlots((prev) => ({
-                        ...prev,
-                        ...processedValues,
-                      }));
-                      setCurrentStep(3);
-                    })}
+              {/* Card transition */}
+              {isTransitioning && transitionPhase === "card" && (
+                <motion.div
+                  key="card-transition"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="absolute inset-0 flex flex-col items-center justify-center w-full h-full px-1 overflow-hidden"
+                >
+                  {/* Show the trip summary card with enhanced animation */}
+                  <div className="w-full flex justify-center">
+                    {messages.length > 0 && messages[0].component}
+                  </div>
+                </motion.div>
+              )}
+
+              {isTransitioning && transitionPhase === "conversation" && (
+                <motion.div
+                  key="conversation-transition"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="absolute inset-0 flex flex-col items-center justify-center w-full h-full px-1 overflow-hidden"
+                >
+                  <div className="text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
+                      <Check className="w-8 h-8 text-white" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-white mb-2">
+                      Perfect! Preparing Your Chat...
+                    </h2>
+                    <p className="text-slate-300 text-sm">
+                      Your trip details have been collected successfully
+                    </p>
+                    <div className="mt-6">
+                      <div className="lds-roller text-indigo-400">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Step 1: Choose Trip Type */}
+              {currentStep === 1 &&
+                isNewChat &&
+                !intentRejected &&
+                !isTransitioning && (
+                  <motion.div
+                    key="step-1"
+                    custom={navDirection}
+                    variants={stepVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{
+                      duration: 0.4,
+                      type: "tween",
+                      ease: "easeInOut",
+                    }}
+                    className="flex flex-col items-center justify-center w-full flex-1 pt-6 sm:pt-8 px-0 min-h-0"
                   >
-                    {fieldsToShow.map((field) => (
-                      <div key={field.key} className="w-full">
-                        {field.key === "travelDates" ? (
-                          <div>
-                            <div className="flex gap-2">
-                              <FormField
-                                control={form.control}
-                                name="startDate"
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-col flex-1">
-                                    <FormLabel>Start Date</FormLabel>
-                                    <FormControl>
-                                      <DatePicker
-                                        field={field}
-                                        placeholderText="Select start date"
-                                        minDate={new Date()}
-                                        disabled={flexibleDates}
-                                      />
-                                    </FormControl>
-                                    <FormMessage className="text-rose-500" />
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
-                                control={form.control}
-                                name="endDate"
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-col flex-1">
-                                    <FormLabel>End Date</FormLabel>
-                                    <FormControl>
-                                      <DatePicker
-                                        field={field}
-                                        placeholderText="Select end date"
-                                        minDate={
-                                          form.watch("startDate") || new Date()
-                                        }
-                                        disabled={
-                                          !form.watch("startDate") ||
-                                          flexibleDates
-                                        }
-                                      />
-                                    </FormControl>
-                                    <FormMessage className="text-rose-500" />
-                                  </FormItem>
-                                )}
-                              />
+                    <div className="mb-4 sm:mb-6 text-base sm:text-lg font-medium text-slate-100 text-center w-full px-2 sm:px-0">
+                      What kind of journey are you dreaming of?
+                    </div>
+                    <div className="w-full max-w-sm sm:max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 px-2 sm:px-4">
+                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full">
+                        {INITIAL_CHIPS.map((chip) => (
+                          <Button
+                            key={chip.value}
+                            size="sm"
+                            className={`w-full px-2 py-2 sm:px-3 sm:py-3 flex items-center justify-center gap-1 sm:gap-2 rounded-md border font-medium text-xs sm:text-sm shadow-sm transition-all duration-200 min-h-[2.5rem] sm:min-h-[3rem] text-center break-words hyphens-auto ${
+                              selectedChip === chip.value
+                                ? "bg-indigo-600 text-white border-indigo-500 shadow-md"
+                                : "bg-indigo-700/30 text-white border-indigo-400/40 hover:bg-indigo-700/50 hover:border-indigo-400/60"
+                            }`}
+                            style={{
+                              outline: "none",
+                              boxShadow:
+                                selectedChip === chip.value
+                                  ? "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+                                  : "0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06)",
+                            }}
+                            onClick={() => handleInitialChipClick(chip.value)}
+                            disabled={loading}
+                            type="button"
+                          >
+                            <div className="flex flex-col sm:flex-col items-center gap-0.5 sm:gap-1">
+                              <span className="flex-shrink-0 [&>*]:w-3 [&>*]:h-3 sm:[&>*]:w-4 sm:[&>*]:h-4">
+                                {chip.icon}
+                              </span>
+                              <span className="leading-tight text-center whitespace-normal text-[10px] sm:text-xs">
+                                {chip.label}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-2 mt-2">
-                              <FormField
-                                control={form.control}
-                                name="flexibleDates"
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-row items-center">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={(checked) => {
-                                          field.onChange(checked);
-                                          if (checked) {
-                                            form.setValue(
-                                              "startDate",
-                                              undefined,
-                                              { shouldValidate: true }
-                                            );
-                                            form.setValue(
-                                              "endDate",
-                                              undefined,
-                                              { shouldValidate: true }
-                                            );
+                          </Button>
+                        ))}
+                      </div>
+                      {/* Navigation buttons */}
+                      <div className="grid grid-cols-3 gap-2 sm:grid sm:grid-cols-3 sm:gap-4 mt-4 sm:mt-6 w-full">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-medium text-xs sm:text-sm h-8 sm:h-9 flex items-center justify-center"
+                          disabled={true}
+                        >
+                          <ChevronLeft className="w-4 h-4 sm:hidden" />
+                          <span className="hidden sm:inline">Back</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-medium text-xs sm:text-sm h-8 sm:h-9"
+                          onClick={() => {
+                            setNavDirection("forward");
+                            setCurrentStep(2);
+                          }}
+                          disabled={loading}
+                        >
+                          Skip
+                        </Button>
+                        {!selectedChip && currentStep === 1 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="w-full block">
+                                <Button
+                                  type="button"
+                                  className="w-full px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-medium shadow border border-indigo-700 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm h-8 sm:h-9"
+                                  disabled={!selectedChip || loading}
+                                  onClick={handleStep1Continue}
+                                >
+                                  <ChevronRight className="w-4 h-4 sm:hidden" />
+                                  <span className="hidden sm:inline">
+                                    Continue
+                                  </span>
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              className="max-w-xs text-center"
+                            >
+                              Please select a trip type to continue.
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            type="button"
+                            className="w-full px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-medium shadow border border-indigo-700 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm h-8 sm:h-9 sm:min-w-[100px]"
+                            disabled={!selectedChip || loading}
+                            onClick={handleStep1Continue}
+                          >
+                            <ChevronRight className="w-4 h-4 sm:hidden" />
+                            <span className="hidden sm:inline">Continue</span>
+                          </Button>
+                        )}
+                      </div>
+                      {error && (
+                        <div className="mt-2 text-rose-400 text-sm text-center">
+                          {error}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+              {/* Step 2: Basic Details */}
+              {currentStep === 2 && !intentRejected && !isTransitioning && (
+                <motion.div
+                  key="step-2"
+                  custom={navDirection}
+                  variants={stepVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    duration: 0.4,
+                    type: "tween",
+                    ease: "easeInOut",
+                  }}
+                  className="flex flex-col items-center justify-center w-full flex-1 pt-6 sm:pt-8 px-0 min-h-0"
+                >
+                  <div className="mb-4 sm:mb-6 text-base sm:text-lg font-semibold text-slate-100 text-center w-full px-2 sm:px-0">
+                    To craft your perfect itinerary, could you share a few more
+                    trip details?
+                  </div>
+                  <Form {...form}>
+                    <form
+                      className="w-full max-w-sm sm:max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 px-2 sm:px-4"
+                      onSubmit={form.handleSubmit(async (values) => {
+                        // Just move to step 3, don't submit to backend yet
+                        const processedValues: Partial<ClarificationState> = {
+                          destination: values.destination,
+                          source: values.source,
+                          groupType:
+                            values.groupType as ClarificationState["groupType"],
+                          startDate: values.startDate
+                            ? format(values.startDate, "yyyy-MM-dd")
+                            : undefined,
+                          endDate: values.endDate
+                            ? format(values.endDate, "yyyy-MM-dd")
+                            : undefined,
+                          budget: values.budget,
+                          interests: values.interests || [],
+                          specialNeeds: values.specialNeeds,
+                          flexibleDates: values.flexibleDates,
+                        };
+
+                        setExtractedSlots((prev) => ({
+                          ...prev,
+                          ...processedValues,
+                        }));
+                        setCurrentStep(3);
+                      })}
+                    >
+                      {fieldsToShow.map((field) => (
+                        <div key={field.key} className="w-full">
+                          {field.key === "travelDates" ? (
+                            <div>
+                              <div className="flex gap-1.5 sm:gap-2">
+                                <FormField
+                                  control={form.control}
+                                  name="startDate"
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-col flex-1">
+                                      <FormLabel className="text-xs sm:text-sm">
+                                        Start Date
+                                      </FormLabel>
+                                      <FormControl>
+                                        <DatePicker
+                                          field={field}
+                                          placeholderText="Select start date"
+                                          minDate={new Date()}
+                                          disabled={flexibleDates}
+                                        />
+                                      </FormControl>
+                                      <FormMessage className="text-rose-500 text-xs" />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="endDate"
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-col flex-1">
+                                      <FormLabel className="text-xs sm:text-sm">
+                                        End Date
+                                      </FormLabel>
+                                      <FormControl>
+                                        <DatePicker
+                                          field={field}
+                                          placeholderText="Select end date"
+                                          minDate={
+                                            form.watch("startDate") ||
+                                            new Date()
                                           }
-                                        }}
-                                        className="mr-2"
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="text-slate-300 text-sm font-normal cursor-pointer select-none">
-                                      My dates are flexible
-                                    </FormLabel>
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="flex-1 text-right text-sm min-h-[1.25rem] pr-1 flex items-center justify-end gap-2">
-                                {!flexibleDates &&
-                                totalDays &&
-                                totalDays > 0 ? (
-                                  <>
-                                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                                    <span className="text-slate-200">
-                                      {totalDays}{" "}
-                                      {totalDays === 1 ? "Day" : "Days"}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span>&nbsp;</span>
-                                )}
+                                          disabled={
+                                            !form.watch("startDate") ||
+                                            flexibleDates
+                                          }
+                                        />
+                                      </FormControl>
+                                      <FormMessage className="text-rose-500 text-xs" />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5 sm:mt-2">
+                                <FormField
+                                  control={form.control}
+                                  name="flexibleDates"
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value}
+                                          onCheckedChange={(checked) => {
+                                            field.onChange(checked);
+                                            if (checked) {
+                                              form.setValue(
+                                                "startDate",
+                                                undefined,
+                                                { shouldValidate: true }
+                                              );
+                                              form.setValue(
+                                                "endDate",
+                                                undefined,
+                                                { shouldValidate: true }
+                                              );
+                                            }
+                                          }}
+                                          className="mr-1.5 sm:mr-2"
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="text-slate-300 text-xs sm:text-sm font-normal cursor-pointer select-none">
+                                        My dates are flexible
+                                      </FormLabel>
+                                    </FormItem>
+                                  )}
+                                />
+                                <div className="flex-1 text-right text-sm min-h-[1.25rem] pr-1 flex items-center justify-end gap-2">
+                                  {!flexibleDates &&
+                                  totalDays &&
+                                  totalDays > 0 ? (
+                                    <>
+                                      <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                                      <span className="text-slate-200">
+                                        {totalDays}{" "}
+                                        {totalDays === 1 ? "Day" : "Days"}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span>&nbsp;</span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ) : field.key === "destination" ? (
-                          <FormField
-                            control={form.control}
-                            name="destination"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Destination</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    placeholder={destinationDisplayed || ""}
-                                    className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
-                                  />
-                                </FormControl>
-                                <FormMessage className="text-rose-500" />
-                              </FormItem>
-                            )}
-                          />
-                        ) : field.key === "groupType" ? (
-                          <FormField
-                            control={form.control}
-                            name="groupType"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Group Type</FormLabel>
-                                <FormControl>
-                                  <GroupTypeChips
-                                    options={GROUP_TYPE_CHIPS.map(
-                                      (c) => c.value
-                                    )}
-                                    value={field.value || ""}
-                                    onChange={field.onChange}
-                                  />
-                                </FormControl>
-                                <FormMessage className="text-rose-500" />
-                              </FormItem>
-                            )}
-                          />
-                        ) : field.key === "source" ? (
-                          <FormField
-                            control={form.control}
-                            name="source"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Departure City (optional)</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    {...field}
-                                    placeholder="Departure city"
-                                    className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
-                                  />
-                                </FormControl>
-                                <FormMessage className="text-rose-500" />
-                              </FormItem>
-                            )}
-                          />
-                        ) : null}
-                      </div>
-                    ))}
+                          ) : field.key === "destination" ? (
+                            <FormField
+                              control={form.control}
+                              name="destination"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs sm:text-sm">
+                                    Destination
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      placeholder={destinationDisplayed || ""}
+                                      className="w-full px-3 py-2 sm:px-4 sm:py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-sm sm:text-base font-sans"
+                                    />
+                                  </FormControl>
+                                  <FormMessage className="text-rose-500 text-xs" />
+                                </FormItem>
+                              )}
+                            />
+                          ) : field.key === "groupType" ? (
+                            <FormField
+                              control={form.control}
+                              name="groupType"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs sm:text-sm">
+                                    Group Type
+                                  </FormLabel>
+                                  <FormControl>
+                                    <GroupTypeChips
+                                      options={GROUP_TYPE_CHIPS.map(
+                                        (c) => c.value
+                                      )}
+                                      value={field.value || ""}
+                                      onChange={field.onChange}
+                                    />
+                                  </FormControl>
+                                  <FormMessage className="text-rose-500 text-xs" />
+                                </FormItem>
+                              )}
+                            />
+                          ) : field.key === "source" ? (
+                            <FormField
+                              control={form.control}
+                              name="source"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs sm:text-sm">
+                                    Departure City (optional)
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      placeholder="Departure city"
+                                      className="w-full px-3 py-2 sm:px-4 sm:py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-sm sm:text-base font-sans"
+                                    />
+                                  </FormControl>
+                                  <FormMessage className="text-rose-500 text-xs" />
+                                </FormItem>
+                              )}
+                            />
+                          ) : null}
+                        </div>
+                      ))}
 
-                    {/* Navigation buttons */}
-                    <div className="flex gap-2 mt-4">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        aria-label="Go back"
-                        className="flex-1 px-4 py-2 text-sm h-10"
-                        onClick={() => {
-                          setNavDirection("back");
-                          setTimeout(() => {
-                            setCurrentStep(1);
-                            setIsNewChat(true);
-                          }, 0);
-                        }}
-                      >
-                        <ArrowLeft className="w-4 h-4 mr-1" /> Back
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="flex-1 px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-semibold text-sm h-10"
-                        onClick={() => {
-                          setNavDirection("forward");
-                          setCurrentStep(3);
-                        }}
-                        disabled={loading}
-                      >
-                        Skip
-                      </Button>
-                      <div className="flex-1">
+                      {/* Navigation buttons */}
+                      <div className="grid grid-cols-3 gap-2 sm:grid sm:grid-cols-3 sm:gap-4 mt-4 sm:mt-6 w-full">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          aria-label="Go back"
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm h-8 sm:h-9 flex items-center justify-center"
+                          onClick={() => {
+                            setNavDirection("back");
+                            setTimeout(() => {
+                              setCurrentStep(1);
+                              setIsNewChat(true);
+                            }, 0);
+                          }}
+                        >
+                          <ChevronLeft className="w-4 h-4 sm:hidden" />
+                          <span className="hidden sm:inline">Back</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-medium text-xs sm:text-sm h-8 sm:h-9"
+                          onClick={() => {
+                            setNavDirection("forward");
+                            setCurrentStep(3);
+                          }}
+                          disabled={loading}
+                        >
+                          Skip
+                        </Button>
                         {!canContinueStep2 && currentStep === 2 ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="w-full block">
                                 <Button
                                   type="submit"
-                                  className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
+                                  className="w-full px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-medium shadow border border-indigo-700 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm h-8 sm:h-9"
                                   disabled={loading || !canContinueStep2}
                                   onClick={() => setNavDirection("forward")}
                                 >
-                                  Continue{" "}
-                                  <ArrowRight className="w-4 h-4 ml-1" />
+                                  <ChevronRight className="w-4 h-4 sm:hidden" />
+                                  <span className="hidden sm:inline">
+                                    Continue
+                                  </span>
                                 </Button>
                               </span>
                             </TooltipTrigger>
@@ -1202,236 +1431,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         ) : (
                           <Button
                             type="submit"
-                            className="w-full flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
+                            className="w-full px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-medium shadow border border-indigo-700 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm h-8 sm:h-9"
                             disabled={loading || !canContinueStep2}
                             onClick={() => setNavDirection("forward")}
                           >
-                            Continue <ArrowRight className="w-4 h-4 ml-1" />
+                            <ChevronRight className="w-4 h-4 sm:hidden" />
+                            <span className="hidden sm:inline">Continue</span>
                           </Button>
                         )}
-                      </div>
-                    </div>
-                    {error && (
-                      <div className="mt-2 text-rose-400 text-sm">{error}</div>
-                    )}
-                  </form>
-                </Form>
-              </motion.div>
-            )}
-
-            {/* Step 3: Preferences & Extras */}
-            {currentStep === 3 && !intentRejected && (
-              <motion.div
-                key="step-3"
-                custom={navDirection}
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.4, type: "tween", ease: "easeInOut" }}
-                className="flex flex-col items-center justify-center w-full h-full pt-4 px-0"
-              >
-                <div className="mb-4 text-lg font-semibold text-slate-100 text-center w-full">
-                  Almost there! Add a few preferences to enhance your trip.
-                </div>
-                {/* Common parent for chip selector and form fields */}
-                <div className="w-full max-w-2xl mx-auto px-4">
-                  <Form {...form}>
-                    <form
-                      className="w-full flex flex-col gap-5"
-                      onSubmit={form.handleSubmit(async (values) => {
-                        // Gather all slot values and submit to backend
-                        const allSlotValues = { ...extractedSlots, ...values };
-
-                        // Process interests as string if array
-                        const processedSlotValues = {
-                          ...allSlotValues,
-                          interests: Array.isArray(values.interests)
-                            ? values.interests
-                            : typeof values.interests === "string" &&
-                              values.interests
-                            ? (values.interests as string)
-                                .split(",")
-                                .map((item) => item.trim())
-                                .filter(Boolean)
-                            : [],
-                        };
-
-                        // When calling clarify, just pass interests as is (array or null)
-                        const clarifyPayload = {
-                          ...clarificationState,
-                          ...processedSlotValues,
-                          tripTheme:
-                            processedSlotValues.tripTheme ||
-                            clarificationState.tripTheme ||
-                            initialChip ||
-                            "",
-                          groupType:
-                            processedSlotValues.groupType as ClarificationState["groupType"],
-                          interests:
-                            processedSlotValues.interests &&
-                            processedSlotValues.interests.length > 0
-                              ? processedSlotValues.interests
-                              : null,
-                        } as ClarificationState;
-
-                        setLoading(true);
-                        setError(null);
-                        try {
-                          const res = await clarify("", clarifyPayload);
-                          setClarificationState(res.updatedState);
-                          setMessages((prev) => [
-                            ...prev,
-                            {
-                              role: "assistant",
-                              content: res.nextPrompt || "Your plan is ready!",
-                            },
-                          ]);
-                          // Go to conversation
-                          setCurrentStep(1);
-                          setIsNewChat(false);
-                        } catch (err) {
-                          let msg = "Sorry, something went wrong.";
-                          if (err instanceof Error && err.message)
-                            msg = err.message;
-                          setError(msg);
-                        } finally {
-                          setLoading(false);
-                        }
-                      })}
-                    >
-                      {STEP_3_FIELDS.map((field) => (
-                        <div key={field.key} className="w-full">
-                          {field.key === "budget" ? (
-                            <div>
-                              <FormField
-                                control={form.control}
-                                name="budget"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Budget</FormLabel>
-                                    <FormControl>
-                                      <Input
-                                        {...field}
-                                        placeholder="Your budget range (e.g., ₹20,000, $500)"
-                                        className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
-                                      />
-                                    </FormControl>
-                                    <FormMessage className="text-rose-500" />
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="flex items-center gap-2 mt-2">
-                                <FormField
-                                  control={form.control}
-                                  name="flexibleBudget"
-                                  render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center">
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value}
-                                          onCheckedChange={(checked) => {
-                                            field.onChange(checked);
-                                            if (checked) {
-                                              form.setValue("budget", "", {
-                                                shouldValidate: true,
-                                              });
-                                            }
-                                          }}
-                                          className="mr-2"
-                                        />
-                                      </FormControl>
-                                      <FormLabel className="text-slate-300 text-sm font-normal cursor-pointer select-none">
-                                        My budget is flexible
-                                      </FormLabel>
-                                    </FormItem>
-                                  )}
-                                />
-                              </div>
-                            </div>
-                          ) : field.key === "interests" ? (
-                            <>
-                              <label className="block font-semibold mb-1 mt-4">
-                                Interests
-                              </label>
-                              <div className="flex items-center w-full h-12">
-                                <HorizontalChipSelector
-                                  options={INTEREST_CHIPS}
-                                  value={
-                                    (form.watch("interests") ?? []) as string[]
-                                  }
-                                  onChange={(chips) =>
-                                    form.setValue("interests", chips)
-                                  }
-                                  placeholder="Select one or more interests"
-                                />
-                              </div>
-                            </>
-                          ) : field.key === "specialNeeds" ? (
-                            <FormField
-                              control={form.control}
-                              name="specialNeeds"
-                              render={({ field: formField }) => (
-                                <FormItem>
-                                  <FormLabel>Special Needs</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      {...formField}
-                                      placeholder="Accessibility, dietary restrictions, etc."
-                                      className="w-full px-4 py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-base font-sans"
-                                    />
-                                  </FormControl>
-                                  <FormMessage className="text-rose-500" />
-                                </FormItem>
-                              )}
-                            />
-                          ) : null}
-                        </div>
-                      ))}
-
-                      {/* Navigation buttons */}
-                      <div className="flex gap-2 mt-4">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          aria-label="Go back"
-                          className="flex-1 px-4 py-2 text-sm h-10"
-                          onClick={() => {
-                            setNavDirection("back");
-                            setCurrentStep(2);
-                          }}
-                        >
-                          <ArrowLeft className="w-4 h-4 mr-1" /> Back
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="flex-1 px-4 py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-semibold text-sm h-10"
-                          onClick={() => {
-                            setNavDirection("forward");
-                            setCurrentStep(1);
-                            setIsNewChat(false);
-                            setMessages((prev) => [
-                              ...prev,
-                              {
-                                role: "assistant",
-                                content:
-                                  "No problem! Let's start planning your trip with the information you've already provided. What would you like to know?",
-                              },
-                            ]);
-                          }}
-                          disabled={loading}
-                        >
-                          Skip
-                        </Button>
-                        <Button
-                          type="submit"
-                          className="flex-1 px-4 py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-semibold shadow border border-indigo-700 flex items-center justify-center gap-2 text-sm h-10"
-                          disabled={loading}
-                        >
-                          Finish <ArrowRight className="w-4 h-4 ml-1" />
-                        </Button>
                       </div>
                       {error && (
                         <div className="mt-2 text-rose-400 text-sm">
@@ -1440,126 +1447,426 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       )}
                     </form>
                   </Form>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              )}
 
-          {/* Normal chat UI after steps */}
-          {currentStep === 1 && !isNewChat && !intentRejected && (
-            <>
-              {/* Chat messages */}
-              <div className="flex-1 flex flex-col items-center overflow-y-auto pt-8 pb-32 mb-8 space-y-4 w-full">
-                <div
-                  className="w-full flex flex-col gap-6 mx-auto"
-                  style={{ maxWidth, paddingBottom: 100 }}
+              {/* Step 3: Preferences & Extras */}
+              {currentStep === 3 && !intentRejected && !isTransitioning && (
+                <motion.div
+                  key="step-3"
+                  custom={navDirection}
+                  variants={stepVariants}
+                  initial="enter"
+                  animate="center"
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 0.3,
+                    ease: "easeOut",
+                  }}
+                  className="flex flex-col items-center justify-center w-full flex-1 pt-6 sm:pt-8 px-0 min-h-0"
                 >
-                  {messages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`w-full flex ${
-                        msg.role === "user" ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
-                          ${
-                            msg.role === "user"
-                              ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
-                              : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
+                  <div className="mb-4 sm:mb-6 text-base sm:text-lg font-semibold text-slate-100 text-center w-full px-2 sm:px-0">
+                    Almost there! Add a few preferences to enhance your trip.
+                  </div>
+                  {/* Common parent for chip selector and form fields */}
+                  <div className="w-full max-w-sm sm:max-w-3xl mx-auto px-2 sm:px-4">
+                    <Form {...form}>
+                      <form
+                        className="w-full flex flex-col gap-4 sm:gap-6"
+                        onSubmit={form.handleSubmit(async (values) => {
+                          // Step 1: Start transition immediately to prevent conversation flash
+                          setIsTransitioning(true);
+                          setTransitionPhase("form");
+                          setShowStepper(false);
+                          setCurrentStep(1); // This triggers step 3 to fade out
+
+                          // Step 2: Wait for form to completely disappear (300ms transition + buffer)
+                          await new Promise((resolve) =>
+                            setTimeout(resolve, 350)
+                          );
+
+                          // Step 3: Now prepare data and card AFTER form is completely gone
+                          const allSlotValues = {
+                            ...extractedSlots,
+                            ...values,
+                          };
+
+                          // Process interests as string if array
+                          const processedSlotValues = {
+                            ...allSlotValues,
+                            interests: Array.isArray(values.interests)
+                              ? values.interests
+                              : typeof values.interests === "string" &&
+                                values.interests
+                              ? (values.interests as string)
+                                  .split(",")
+                                  .map((item) => item.trim())
+                                  .filter(Boolean)
+                              : [],
+                          };
+
+                          // When calling clarify, just pass interests as is (array or null)
+                          const clarifyPayload = {
+                            ...clarificationState,
+                            ...processedSlotValues,
+                            tripTheme:
+                              processedSlotValues.tripTheme ||
+                              clarificationState.tripTheme ||
+                              initialChip ||
+                              "",
+                            groupType:
+                              processedSlotValues.groupType as ClarificationState["groupType"],
+                            interests:
+                              processedSlotValues.interests &&
+                              processedSlotValues.interests.length > 0
+                                ? processedSlotValues.interests
+                                : null,
+                          } as ClarificationState;
+
+                          // Prepare trip summary card
+                          const summaryCard = (
+                            <TripSummaryCard
+                              tripData={clarifyPayload}
+                              tripTheme={initialChip || ""}
+                              formData={values}
+                            />
+                          );
+
+                          setMessages([
+                            {
+                              role: "assistant",
+                              content: "",
+                              component: summaryCard,
+                            },
+                          ]);
+
+                          // Step 4: Show card at final position
+                          setTransitionPhase("card");
+
+                          // Step 5: API call during card display
+                          setLoading(true);
+                          setError(null);
+                          try {
+                            const res = await clarify("", clarifyPayload);
+                            setClarificationState(res.updatedState);
+
+                            // Wait for card to be visible
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 800)
+                            );
+
+                            // Step 6: Transition to conversation
+                            setTransitionPhase("conversation");
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 300)
+                            );
+
+                            // Complete transition
+                            setIsTransitioning(false);
+                            setIsNewChat(false);
+                          } catch (err) {
+                            let msg = "Sorry, something went wrong.";
+                            if (err instanceof Error && err.message)
+                              msg = err.message;
+                            setError(msg);
+                            setIsTransitioning(false);
+                            setShowStepper(true);
+                            setCurrentStep(3);
+                            setTransitionPhase("form");
+                          } finally {
+                            setLoading(false);
                           }
-                        `}
+                        })}
                       >
-                        {msg.content}
-                      </div>
-                    </div>
-                  ))}
-                  {/* Chips for quick selection */}
-                  {chipsToShow && (
-                    <div className="flex flex-col gap-3 mt-2">
-                      <div className="flex flex-wrap gap-2 justify-start">
-                        {chipsToShow.map((chip) => (
-                          <Button
-                            key={chip.value}
-                            size="sm"
-                            className="px-5 py-2 flex items-center justify-center gap-2 rounded-md border font-semibold text-base shadow focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 transition-all duration-150 bg-indigo-700/30 text-white border-indigo-400/40 hover:bg-indigo-700/50"
-                            onClick={() => handleChipClick(chip.value)}
-                            disabled={loading}
-                            type="button"
-                          >
-                            {chip.label}
-                          </Button>
+                        {STEP_3_FIELDS.map((field) => (
+                          <div key={field.key} className="w-full">
+                            {field.key === "budget" ? (
+                              <div>
+                                <FormField
+                                  control={form.control}
+                                  name="budget"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs sm:text-sm">
+                                        Budget
+                                      </FormLabel>
+                                      <FormControl>
+                                        <Input
+                                          {...field}
+                                          placeholder="Your budget range (e.g., ₹20,000, $500)"
+                                          className="w-full px-3 py-2 sm:px-4 sm:py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-sm sm:text-base font-sans"
+                                        />
+                                      </FormControl>
+                                      <FormMessage className="text-rose-500 text-xs" />
+                                    </FormItem>
+                                  )}
+                                />
+                                <div className="flex items-center gap-2 mt-1.5 sm:mt-2">
+                                  <FormField
+                                    control={form.control}
+                                    name="flexibleBudget"
+                                    render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center">
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={(checked) => {
+                                              field.onChange(checked);
+                                              if (checked) {
+                                                form.setValue("budget", "", {
+                                                  shouldValidate: true,
+                                                });
+                                              }
+                                            }}
+                                            className="mr-1.5 sm:mr-2"
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="text-slate-300 text-xs sm:text-sm font-normal cursor-pointer select-none">
+                                          My budget is flexible
+                                        </FormLabel>
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                            ) : field.key === "interests" ? (
+                              <>
+                                <label className="block font-medium mb-1 mt-2 sm:mt-3 text-xs sm:text-sm">
+                                  Interests
+                                </label>
+                                <div className="flex items-center w-full h-10 sm:h-12">
+                                  <HorizontalChipSelector
+                                    options={INTEREST_CHIPS}
+                                    value={
+                                      (form.watch("interests") ??
+                                        []) as string[]
+                                    }
+                                    onChange={(chips) =>
+                                      form.setValue("interests", chips)
+                                    }
+                                    placeholder="Select one or more interests"
+                                  />
+                                </div>
+                              </>
+                            ) : field.key === "specialNeeds" ? (
+                              <FormField
+                                control={form.control}
+                                name="specialNeeds"
+                                render={({ field: formField }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs sm:text-sm">
+                                      Special Needs
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...formField}
+                                        placeholder="Accessibility, dietary restrictions, etc."
+                                        className="w-full px-3 py-2 sm:px-4 sm:py-3 rounded-md bg-slate-800 text-slate-200 border border-slate-700 focus:outline-none focus:border-indigo-500 text-sm sm:text-base font-sans"
+                                      />
+                                    </FormControl>
+                                    <FormMessage className="text-rose-500 text-xs" />
+                                  </FormItem>
+                                )}
+                              />
+                            ) : null}
+                          </div>
                         ))}
-                      </div>
-                    </div>
-                  )}
-                  {loading && (
-                    <div className="w-full flex justify-center">
-                      <div className="rounded-2xl max-w-[80%] flex justify-center items-center shadow-md mx-0">
-                        <div className="lds-roller text-indigo-400">
-                          <div></div>
-                          <div></div>
-                          <div></div>
-                          <div></div>
-                          <div></div>
-                          <div></div>
-                          <div></div>
-                          <div></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {error && (
-                    <div className="w-full flex justify-start">
-                      <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-rose-900 text-rose-200 rounded-bl-xs border border-rose-500 shadow-md mx-0 flex items-center gap-2">
-                        {error}
-                        {lastUserMessage && (
-                          <button
+
+                        {/* Navigation buttons */}
+                        <div className="grid grid-cols-3 gap-2 sm:grid sm:grid-cols-3 sm:gap-4 mt-4 sm:mt-6 w-full">
+                          <Button
                             type="button"
-                            aria-label="Retry"
-                            className="ml-2 text-rose-200 hover:text-white focus:outline-none"
-                            onClick={(e) =>
-                              handleSubmit(
-                                e as React.FormEvent,
-                                lastUserMessage
-                              )
-                            }
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              background: "none",
-                              border: "none",
-                              padding: 0,
-                              cursor: "pointer",
+                            size="sm"
+                            variant="outline"
+                            aria-label="Go back"
+                            className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm h-8 sm:h-9 flex items-center justify-center"
+                            onClick={() => {
+                              setNavDirection("back");
+                              setCurrentStep(2);
                             }}
                           >
-                            <RotateCcw className="w-5 h-5" />
-                          </button>
+                            <ChevronLeft className="w-4 h-4 sm:hidden" />
+                            <span className="hidden sm:inline">Back</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 font-medium text-xs sm:text-sm h-8 sm:h-9"
+                            onClick={async () => {
+                              setIsTransitioning(true);
+                              setShowStepper(false);
+                              setTransitionPhase("conversation");
+
+                              await new Promise((resolve) =>
+                                setTimeout(resolve, 300)
+                              );
+
+                              setNavDirection("forward");
+                              setCurrentStep(1);
+                              setIsNewChat(false);
+                              setIsTransitioning(false);
+                              setTransitionPhase("form");
+                              // No messages set - start with empty conversation
+                              setMessages([]);
+                            }}
+                            disabled={loading}
+                          >
+                            Skip
+                          </Button>
+                          <Button
+                            type="submit"
+                            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-md bg-indigo-800 hover:bg-indigo-700 text-white font-medium shadow border border-indigo-700 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm h-8 sm:h-9"
+                            disabled={loading}
+                          >
+                            <ChevronRight className="w-4 h-4 sm:hidden" />
+                            <span className="hidden sm:inline">Finish</span>
+                          </Button>
+                        </div>
+                        {error && (
+                          <div className="mt-2 text-rose-400 text-sm">
+                            {error}
+                          </div>
+                        )}
+                      </form>
+                    </Form>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Normal chat UI after steps */}
+          {currentStep === 1 &&
+            !isNewChat &&
+            !intentRejected &&
+            !isTransitioning && (
+              <motion.div
+                key="conversation"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="w-full h-full flex flex-col"
+              >
+                {/* Chat messages */}
+                <div className="flex-1 flex flex-col items-center overflow-y-auto overflow-x-hidden pt-8 pb-32 mb-8 space-y-4 w-full">
+                  <div
+                    className="w-full flex flex-col gap-6 mx-auto"
+                    style={{
+                      maxWidth,
+                      paddingBottom: 100,
+                      minHeight: "min-content",
+                    }}
+                  >
+                    {messages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`w-full flex ${
+                          msg.role === "user" ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        {msg.component ? (
+                          msg.component
+                        ) : (
+                          <div
+                            className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
+                            ${
+                              msg.role === "user"
+                                ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
+                                : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
+                            }
+                          `}
+                          >
+                            {msg.content}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  )}
-                  <div ref={bottomRef} />
+                    ))}
+                    {/* Chips for quick selection */}
+                    {chipsToShow && (
+                      <div className="flex flex-col gap-3 mt-2">
+                        <div className="flex flex-wrap gap-2 justify-start">
+                          {chipsToShow.map((chip) => (
+                            <Button
+                              key={chip.value}
+                              size="sm"
+                              className="px-5 py-2 flex items-center justify-center gap-2 rounded-md border font-semibold text-base shadow focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 transition-all duration-150 bg-indigo-700/30 text-white border-indigo-400/40 hover:bg-indigo-700/50"
+                              onClick={() => handleChipClick(chip.value)}
+                              disabled={loading}
+                              type="button"
+                            >
+                              {chip.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {loading && (
+                      <div className="w-full flex justify-center">
+                        <div className="rounded-2xl max-w-[80%] flex justify-center items-center shadow-md mx-0">
+                          <div className="lds-roller text-indigo-400">
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {error && (
+                      <div className="w-full flex justify-start">
+                        <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-rose-900 text-rose-200 rounded-bl-xs border border-rose-500 shadow-md mx-0 flex items-center gap-2">
+                          {error}
+                          {lastUserMessage && (
+                            <button
+                              type="button"
+                              aria-label="Retry"
+                              className="ml-2 text-rose-200 hover:text-white focus:outline-none"
+                              onClick={(e) =>
+                                handleSubmit(
+                                  e as React.FormEvent,
+                                  lastUserMessage
+                                )
+                              }
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                cursor: "pointer",
+                              }}
+                            >
+                              <RotateCcw className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div ref={bottomRef} />
+                  </div>
                 </div>
-              </div>
-              {/* Input bar - floating, fixed at bottom, not overlapping sidebar */}
-              <ChatInputBar
-                inputValue={inputValue}
-                setInputValue={setInputValue}
-                loading={loading}
-                handleSubmit={handleSubmit}
-                fileInputRef={fileInputRef}
-                displayed=""
-                sidebarWidth={sidebarWidth}
-                maxWidth={maxWidth}
-              />
-            </>
-          )}
+                {/* Input bar - floating, fixed at bottom, not overlapping sidebar */}
+                <ChatInputBar
+                  inputValue={inputValue}
+                  setInputValue={setInputValue}
+                  loading={loading}
+                  handleSubmit={handleSubmit}
+                  fileInputRef={fileInputRef}
+                  displayed=""
+                  sidebarWidth={sidebarWidth}
+                  maxWidth={maxWidth}
+                />
+              </motion.div>
+            )}
 
           {/* Show chat history even when intent is rejected */}
-          {intentRejected && (
+          {intentRejected && !isTransitioning && (
             <>
-              <div className="flex-1 flex flex-col items-center overflow-y-auto pt-8 pb-32 mb-8 space-y-4 w-full">
+              <div className="flex-1 flex flex-col items-center overflow-hidden pt-8 pb-32 mb-8 space-y-4 w-full">
                 <div
                   className="w-full flex flex-col gap-6 mx-auto"
                   style={{ maxWidth, paddingBottom: 100 }}
@@ -1605,20 +1912,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   );
 };
 
-// Single-select chips for group type
+// Single-select chips for group type - much more compact and mobile-friendly
 const GroupTypeChips: React.FC<{
   options: string[];
   value: string;
   onChange: (value: string) => void;
 }> = ({ options, value, onChange }) => {
   return (
-    <div className="flex gap-3 w-full">
+    <div className="flex gap-1.5 sm:gap-2 w-full">
       {options.map((opt) => (
         <Button
           key={opt}
           type="button"
           size="sm"
-          className={`flex-1 px-0 py-2 rounded-md border text-sm font-medium transition-all duration-150 cursor-pointer select-none
+          className={`flex-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-md border text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer select-none
             ${
               value === opt.toLowerCase()
                 ? "bg-indigo-600 text-white border-indigo-500 shadow"
@@ -1627,7 +1934,7 @@ const GroupTypeChips: React.FC<{
           `}
           style={{
             minWidth: 0,
-            minHeight: 36,
+            minHeight: 32,
             boxShadow: "none",
             outline: "none",
           }}
@@ -1641,67 +1948,72 @@ const GroupTypeChips: React.FC<{
   );
 };
 
+// Stepper: ultra-compact mobile design with fixed width
 const Stepper: React.FC<{ step: 1 | 2 | 3 }> = ({ step }) => {
   const steps = [
-    { label: "Choose Trip Type" },
-    { label: "Basic Details" },
-    { label: "Preferences & Extras" },
+    { label: "Choose Trip\nType", shortLabel: "Trip" },
+    { label: "Basic Details", shortLabel: "Details" },
+    { label: "Preferences\n& Extras", shortLabel: "Prefs" },
   ];
 
   return (
-    <div className="w-2xl max-w-full mx-auto px-4 py-6">
-      <div className="relative w-full">
-        {/* Background line - from center of first circle to center of last circle */}
+    <div className="w-full flex justify-center px-2 py-4 sm:px-4 sm:py-6">
+      <div className="relative w-80 sm:w-96">
+        {/* Background line - positioned between circle centers */}
         <div
-          className="absolute top-5 h-0.5 bg-slate-700"
+          className="absolute top-3 sm:top-4 h-0.5 bg-slate-700"
           style={{
-            left: "20px", // Half of circle width (40px / 2)
-            right: "20px", // Half of circle width (40px / 2)
+            left: "calc(16.67% + 12px)",
+            right: "calc(16.67% + 12px)",
           }}
         />
-
-        {/* Progress line - from center of first circle to center of current step */}
+        {/* Progress line - positioned between circle centers */}
         <div
-          className="absolute top-5 h-0.5 bg-indigo-500 transition-all duration-500 ease-out"
+          className="absolute top-3 sm:top-4 h-0.5 bg-indigo-500 transition-all duration-500 ease-out"
           style={
-            step === steps.length
-              ? { left: "20px", right: "20px" }
+            step === 1
+              ? { display: "none" }
+              : step === 2
+              ? {
+                  left: "calc(16.67% + 12px)",
+                  width: "calc(33.33% - 24px)",
+                }
               : {
-                  left: "20px",
-                  width: `calc(${
-                    ((step - 1) / (steps.length - 1)) * 100
-                  }% - 40px + 20px)`,
+                  left: "calc(16.67% + 12px)",
+                  right: "calc(16.67% + 12px)",
                 }
           }
         />
-
-        {/* Steps */}
-        <div className="relative flex justify-between">
+        {/* Steps - fixed positioning */}
+        <div className="relative flex">
           {steps.map((stepItem, index) => {
             const stepNumber = index + 1;
             const isCompleted = step > stepNumber;
             const isActive = step === stepNumber;
-
             return (
-              <div key={stepItem.label} className="flex flex-col items-center">
-                {/* Step circle */}
+              <div
+                key={stepItem.label}
+                className="flex flex-col items-center"
+                style={{
+                  width: "33.33%",
+                  position: "relative",
+                }}
+              >
                 <div
-                  className={`
-                    w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold
-                    transition-all duration-200 relative z-10
+                  className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold
+                    transition-all duration-200 relative z-10 flex-shrink-0
                     ${
                       isCompleted
                         ? "bg-indigo-600 text-white border-2 border-indigo-500"
                         : isActive
                         ? "bg-indigo-600 text-white border-2 border-indigo-400"
                         : "bg-slate-900 text-slate-400 border-2 border-slate-600"
-                    }
-                  `}
+                    }`}
                   aria-current={isActive ? "step" : undefined}
                 >
                   {isCompleted ? (
                     <svg
-                      className="w-5 h-5"
+                      className="w-2.5 h-2.5 sm:w-3 sm:h-3"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2.5"
@@ -1717,21 +2029,20 @@ const Stepper: React.FC<{ step: 1 | 2 | 3 }> = ({ step }) => {
                     stepNumber
                   )}
                 </div>
-
-                {/* Step label */}
                 <div
-                  className={`
-                    mt-3 text-xs font-medium text-center max-w-20
-                    ${
-                      isActive
-                        ? "text-indigo-300"
-                        : isCompleted
-                        ? "text-indigo-200"
-                        : "text-slate-400"
-                    }
-                  `}
+                  className={`mt-1 text-[8px] sm:text-[10px] font-medium text-center px-0.5 leading-tight ${
+                    isActive
+                      ? "text-indigo-300"
+                      : isCompleted
+                      ? "text-indigo-200"
+                      : "text-slate-400"
+                  }`}
                 >
-                  {stepItem.label}
+                  {/* Show short label on mobile, full label on larger screens */}
+                  <span className="hidden sm:block whitespace-pre-line">
+                    {stepItem.label}
+                  </span>
+                  <span className="block sm:hidden">{stepItem.shortLabel}</span>
                 </div>
               </div>
             );

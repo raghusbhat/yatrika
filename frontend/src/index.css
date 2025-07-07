@@ -56,9 +56,27 @@
     --chart-5: 340 75% 55%;
   }
 
+  /* Ensure no page overflow or scrollbars */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Prevent any scrollbars during transitions */
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
   * {
     border-color: hsl(var(--border));
+    box-sizing: border-box;
   }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));

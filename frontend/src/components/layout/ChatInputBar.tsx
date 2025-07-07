@@ -37,7 +37,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [isFocused, setIsFocused] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
   // Auto-resize textarea
@@ -140,11 +140,6 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
     setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // Remove focus border when loading is true
-  useEffect(() => {
-    if (loading && isFocused) setIsFocused(false);
-  }, [loading]);
-
   // Refocus textarea after loading ends
   useEffect(() => {
     if (!loading && textareaRef.current) {
@@ -165,13 +160,12 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
       }}
     >
       <div
-        className={`pointer-events-auto w-full bg-slate-900 shadow shadow-black border px-2 py-2 rounded-xl flex flex-col gap-1 transition-all duration-150
-        ${
-          isFocused && !loading
-            ? "border-indigo-500 shadow-[0_4px_32px_rgba(80,80,180,0.10)]"
-            : "border-slate-800 shadow-2xl"
-        } mx-auto`}
-        style={{ maxWidth }}
+        className="pointer-events-auto w-full bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-600/60 rounded-xl px-3 py-3 flex flex-col gap-2 transition-all duration-150 mx-auto"
+        style={{
+          maxWidth,
+          boxShadow:
+            "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.1)",
+        }}
       >
         {/* Error message */}
         {error && (
@@ -221,14 +215,14 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
             ))}
           </div>
         )}
-        {/* Upper row: input only */}
-        <div className="flex items-center w-full">
+        {/* Input area with improved contrast */}
+        <div className="flex items-center w-full bg-slate-700/50 rounded-lg border border-slate-600/40 px-4 py-2">
           <Textarea
             ref={textareaRef}
             rows={1}
             maxLength={1000}
-            placeholder={displayed || ""}
-            className="flex-1 resize-none min-h-[44px] max-h-[120px]"
+            placeholder={displayed || "Type your message..."}
+            className="flex-1 resize-none bg-transparent border-0 text-slate-100 placeholder-slate-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none py-1"
             autoComplete="off"
             aria-label="Chat message"
             value={inputValue}
@@ -237,17 +231,20 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
             onPaste={onPaste}
             onDrop={onDrop}
             disabled={loading}
-            style={{ maxHeight: MAX_TEXTAREA_HEIGHT, minHeight: 44 }}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            style={{
+              maxHeight: MAX_TEXTAREA_HEIGHT - 16,
+              minHeight: 28,
+              lineHeight: "1.5",
+              fontSize: "14px",
+            }}
           />
         </div>
         {/* Lower row: buttons */}
-        <div className="flex items-center justify-between w-full gap-2 mt-1">
+        <div className="flex items-center justify-between w-full gap-3">
           <Button
             type="button"
             size="icon"
-            className="h-8 w-8 p-0 bg-slate-800 text-slate-400 hover:text-indigo-400 hover:bg-slate-700 rounded-lg border border-slate-700"
+            className="h-9 w-9 p-0 bg-slate-600/60 text-slate-300 hover:text-indigo-400 hover:bg-slate-600 rounded-lg border border-slate-500/40 transition-all duration-200"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Upload image"
             tabIndex={-1}
@@ -267,7 +264,7 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
           <Button
             type="submit"
             size="icon"
-            className="h-8 w-8 p-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow border border-indigo-700"
+            className="h-9 w-9 p-0 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-600 disabled:text-slate-400 text-white rounded-lg shadow-lg border border-indigo-500 transition-all duration-200"
             disabled={loading || !inputValue.trim()}
             aria-label="Send"
           >
