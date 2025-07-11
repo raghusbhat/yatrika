@@ -3,6 +3,7 @@ import helmet from "helmet";
 import cors from "cors";
 import clarifyRoutes from "./routes/clarify";
 import enhancedClarifyRoutes from "./routes/enhancedClarify";
+import quotaRoutes from "./routes/quota";
 
 const app = express();
 
@@ -12,8 +13,9 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" })); // Increased limit for user profile data
 
 // Routes
-app.use("/api/clarify", clarifyRoutes);
 app.use("/api/clarify", enhancedClarifyRoutes); // Enhanced routes with personalization
+app.use("/api/basic-clarify", clarifyRoutes); // Basic routes (renamed to avoid confusion)
+app.use("/api/quota", quotaRoutes); // Quota management
 
 // Health check
 app.get("/health", (req, res) => {

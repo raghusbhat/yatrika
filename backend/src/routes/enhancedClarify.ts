@@ -1,9 +1,6 @@
 import { Router } from "express";
 import asyncHandler from "express-async-handler";
-import {
-  enhancedClarification,
-  startClarification,
-} from "../controllers/enhancedClarifyController";
+import { enhancedClarification } from "../controllers/enhancedClarifyController";
 import { validateRequest } from "../middleware/validateRequest";
 import { z } from "zod";
 
@@ -13,63 +10,34 @@ const router = Router();
 const enhancedClarifySchema = z.object({
   input: z.string(),
   state: z.object({
-    source: z.string().optional(),
-    destination: z.string().optional(),
-    travelDates: z.string().optional(),
-    duration: z.string().optional(),
-    groupType: z.enum(["solo", "couple", "family", "friends"]).optional(),
-    budget: z.string().optional(),
-    domesticOrInternational: z.enum(["domestic", "international"]).optional(),
+    source: z.string().optional().nullable(),
+    destination: z.string().optional().nullable(),
+    travelDates: z.string().optional().nullable(),
+    duration: z.string().optional().nullable(),
+    groupType: z.enum(["solo", "couple", "family", "friends"]).optional().nullable(),
+    budget: z.string().optional().nullable(),
+    domesticOrInternational: z.enum(["domestic", "international"]).optional().nullable(),
     modeOfTransport: z
       .enum(["own car", "rental car", "taxi", "train", "bus", "flight"])
-      .optional(),
-    carModel: z.string().optional(),
-    flightPreferences: z.string().optional(),
-    accommodation: z.string().optional(),
-    travelPace: z.string().optional(),
-    occasion: z.string().optional(),
-    foodPreference: z.string().optional(),
-    specialNeeds: z.string().optional(),
-    climatePreference: z.string().optional(),
-    interests: z.array(z.string()).optional(),
+      .optional().nullable(),
+    carModel: z.string().optional().nullable(),
+    flightPreferences: z.string().optional().nullable(),
+    accommodation: z.string().optional().nullable(),
+    travelPace: z.string().optional().nullable(),
+    occasion: z.string().optional().nullable(),
+    foodPreference: z.string().optional().nullable(),
+    specialNeeds: z.string().optional().nullable(),
+    climatePreference: z.string().optional().nullable(),
+    interests: z.array(z.string()).optional().nullable(),
     inputHistory: z.array(z.string()),
     isPlanReady: z.boolean(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    tripTheme: z.string().optional(),
+    startDate: z.string().optional().nullable(),
+    endDate: z.string().optional().nullable(),
+    tripTheme: z.string().optional().nullable(),
+    flexibleBudget: z.boolean().optional().nullable(),
+    flexibleDates: z.boolean().optional().nullable(),
   }),
   userProfile: z.record(z.any()).optional(), // localStorage data
-});
-
-// Basic clarification schema (backwards compatibility)
-const basicClarifySchema = z.object({
-  input: z.string(),
-  state: z.object({
-    source: z.string().optional(),
-    destination: z.string().optional(),
-    travelDates: z.string().optional(),
-    duration: z.string().optional(),
-    groupType: z.enum(["solo", "couple", "family", "friends"]).optional(),
-    budget: z.string().optional(),
-    domesticOrInternational: z.enum(["domestic", "international"]).optional(),
-    modeOfTransport: z
-      .enum(["own car", "rental car", "taxi", "train", "bus", "flight"])
-      .optional(),
-    carModel: z.string().optional(),
-    flightPreferences: z.string().optional(),
-    accommodation: z.string().optional(),
-    travelPace: z.string().optional(),
-    occasion: z.string().optional(),
-    foodPreference: z.string().optional(),
-    specialNeeds: z.string().optional(),
-    climatePreference: z.string().optional(),
-    interests: z.array(z.string()).optional(),
-    inputHistory: z.array(z.string()),
-    isPlanReady: z.boolean(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    tripTheme: z.string().optional(),
-  }),
 });
 
 // Enhanced personalized clarification endpoint
@@ -77,13 +45,6 @@ router.post(
   "/enhanced",
   validateRequest(enhancedClarifySchema),
   asyncHandler(enhancedClarification)
-);
-
-// Original clarification endpoint (backwards compatibility)
-router.post(
-  "/",
-  validateRequest(basicClarifySchema),
-  asyncHandler(startClarification)
 );
 
 export default router;

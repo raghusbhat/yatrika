@@ -220,6 +220,36 @@ export class UserProfileManager {
       profile.notifications = JSON.parse(localStorageData.user_notif);
     }
 
+    // FIX: Map user_city to profile.address.city for fallback source
+    if (localStorageData.user_city) {
+      profile.address = {
+        city: localStorageData.user_city,
+        ...(profile.address || {}),
+      };
+    }
+
+    // FIX: Infer currency from country if user_prefs not available
+    if (!profile.locale?.currency && localStorageData.user_country) {
+      const currencyMap: Record<string, string> = {
+        India: "INR",
+        "United States": "USD",
+        "United Kingdom": "GBP",
+        Canada: "CAD",
+        Australia: "AUD",
+        Germany: "EUR",
+        France: "EUR",
+        Japan: "JPY",
+        Singapore: "SGD",
+      };
+      const inferredCurrency = currencyMap[localStorageData.user_country];
+      if (inferredCurrency) {
+        profile.locale = {
+          currency: inferredCurrency,
+          ...(profile.locale || {}),
+        };
+      }
+    }
+
     return profile;
   }
 

@@ -138,31 +138,14 @@ Provide the refined recommendation with explanations for key personalizations.
     context: PersonalizationContext,
     responseType: string = "comprehensive"
   ): Promise<string> {
-    try {
-      const userProfileSummary =
-        UserProfileManager.generatePersonalizationPrompt(context.userProfile);
+    // RATE LIMIT FIX: Skip API calls for personalization to reduce Gemini usage
+    // Use template-based personalization instead to avoid additional API calls
+    console.log(
+      "[PersonalizationService] Using template-based personalization (rate limit optimization)"
+    );
 
-      // Create a simplified prompt to reduce token usage
-      const prompt = await this.masterTemplate.format({
-        user_profile_summary: userProfileSummary || "General traveler",
-        destination: context.conversationState.destination || "not specified",
-        group_type: context.conversationState.groupType || "not specified",
-        budget: context.conversationState.budget || "flexible",
-        preferences: this.extractPreferences(context.userProfile),
-        response_type: responseType,
-      });
-
-      const result = await this.geminiLLM.generateContent(prompt);
-      return result.response.text();
-    } catch (error) {
-      console.warn(
-        "[PersonalizationService] API error, using fallback:",
-        error
-      );
-
-      // Fallback to template-based personalization
-      return this.generateFallbackPersonalizedResponse(context, responseType);
-    }
+    // Always use fallback personalization to avoid additional API calls
+    return this.generateFallbackPersonalizedResponse(context, responseType);
   }
 
   // Fallback personalization without API calls

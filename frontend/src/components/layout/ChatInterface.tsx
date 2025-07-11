@@ -8,6 +8,9 @@ import React, {
 import { clarify } from "@/api/enhancedClarify";
 import type { ClarificationState } from "@/types/clarification";
 import { initialClarificationState } from "@/types/clarification";
+import { StructuredItineraryDisplay } from "@/components/itinerary/StructuredItineraryDisplay";
+import * as ItineraryTypes from "@/types/itinerary";
+// import { SimpleItineraryTest } from "@/components/itinerary/SimpleItineraryTest";
 import ChatInputBar from "./ChatInputBar.tsx";
 import {
   RotateCcw,
@@ -601,6 +604,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState<string>(
+    "Processing your request..."
+  );
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
 
   // Step management
@@ -630,6 +636,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [navDirection, setNavDirection] = useState<"forward" | "back">(
     "forward"
   );
+
+  // State for structured itinerary display
+  const [structuredItinerary, setStructuredItinerary] =
+    useState<ItineraryTypes.StructuredItinerary | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -758,11 +768,38 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     try {
       const res = await clarify(messageToSend, clarificationState);
       setClarificationState(res.updatedState);
+
       if (res.nextPrompt) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: res.nextPrompt },
-        ]);
+        // Check if the response is a structured itinerary JSON
+        try {
+          const parsedItinerary = JSON.parse(res.nextPrompt);
+          if (parsedItinerary.tripOverview && parsedItinerary.dailyItinerary) {
+            // It's a structured itinerary
+            setStructuredItinerary(parsedItinerary);
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: "Here's your personalized travel itinerary!",
+                component: (
+                  <StructuredItineraryDisplay itinerary={parsedItinerary} />
+                ),
+              },
+            ]);
+          } else {
+            // Regular text response
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: res.nextPrompt },
+            ]);
+          }
+        } catch (error) {
+          // Not JSON or invalid structure, treat as regular text
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: res.nextPrompt },
+          ]);
+        }
       } else if (res.updatedState.isPlanReady) {
         setMessages((prev) => [
           ...prev,
@@ -808,14 +845,57 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setIsNewChat(false);
     setLoading(true);
     setError(null);
+    setLoadingMessage("Processing your request...");
+
+    // Add loading status updates
+    const statusUpdateInterval = setInterval(() => {
+      setLoadingMessage((prev) => {
+        const messages = [
+          "Processing your request...",
+          "Analyzing your travel preferences...",
+          "Generating personalized itinerary...",
+          "Creating detailed recommendations...",
+          "Finalizing your travel plan...",
+        ];
+        const currentIndex = messages.indexOf(prev);
+        return messages[(currentIndex + 1) % messages.length];
+      });
+    }, 8000); // Update every 8 seconds
     try {
       const res = await clarify(chipValue, clarificationState);
       setClarificationState(res.updatedState);
+
       if (res.nextPrompt) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: res.nextPrompt },
-        ]);
+        // Check if the response is a structured itinerary JSON
+        try {
+          const parsedItinerary = JSON.parse(res.nextPrompt);
+          if (parsedItinerary.tripOverview && parsedItinerary.dailyItinerary) {
+            // It's a structured itinerary
+            setStructuredItinerary(parsedItinerary);
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: "Here's your personalized travel itinerary!",
+                component: (
+                  <StructuredItineraryDisplay itinerary={parsedItinerary} />
+                ),
+              },
+            ]);
+          } else {
+            // Regular text response
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: res.nextPrompt },
+            ]);
+          }
+        } catch (error) {
+          // Not JSON or invalid structure, treat as regular text
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: res.nextPrompt },
+          ]);
+        }
       } else if (res.updatedState.isPlanReady) {
         setMessages((prev) => [
           ...prev,
@@ -827,7 +907,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (err instanceof Error && err.message) msg = err.message;
       setError(msg);
     } finally {
+      clearInterval(statusUpdateInterval);
       setLoading(false);
+      setLoadingMessage("Processing your request...");
     }
   };
 
@@ -872,6 +954,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setIsTransitioning(false);
     setShowStepper(true);
     setTransitionPhase("form");
+    setStructuredItinerary(null);
 
     // Reset form
     const userCity = localStorage.getItem("user_city") || "";
@@ -1546,11 +1629,82 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           // Step 5: API call during card display
                           setLoading(true);
                           setError(null);
+
+                          // Add progress message
+                          setMessages((prev) => [
+                            ...prev,
+                            {
+                              role: "assistant",
+                              content:
+                                "🤖 Generating your personalized itinerary...",
+                            },
+                          ]);
+
                           try {
                             const res = await clarify("", clarifyPayload);
                             setClarificationState(res.updatedState);
 
-                            // Wait for card to be visible
+                            // Check if we got a structured itinerary response
+                            if (res.nextPrompt) {
+                              try {
+                                const parsedItinerary = JSON.parse(
+                                  res.nextPrompt
+                                );
+                                if (
+                                  parsedItinerary.tripOverview &&
+                                  parsedItinerary.dailyItinerary
+                                ) {
+                                  // It's a structured itinerary!
+                                  setStructuredItinerary(parsedItinerary);
+
+                                  // Replace loading message with success + component
+                                  setMessages((prev) => [
+                                    ...prev.slice(0, -1), // Remove loading message
+                                    {
+                                      role: "assistant",
+                                      content:
+                                        "🎉 Here's your personalized travel itinerary!",
+                                      component: (
+                                        <StructuredItineraryDisplay
+                                          itinerary={parsedItinerary}
+                                        />
+                                      ),
+                                    },
+                                  ]);
+
+                                  // Step 6: Transition to conversation to show the itinerary
+                                  setTransitionPhase("conversation");
+                                  await new Promise((resolve) =>
+                                    setTimeout(resolve, 300)
+                                  );
+
+                                  // Complete transition
+                                  setIsTransitioning(false);
+                                  setIsNewChat(false);
+                                  return; // Exit early - we have our itinerary
+                                } else {
+                                  // Regular text response
+                                  setMessages((prev) => [
+                                    ...prev.slice(0, -1), // Remove loading message
+                                    {
+                                      role: "assistant",
+                                      content: res.nextPrompt,
+                                    },
+                                  ]);
+                                }
+                              } catch (parseError) {
+                                // Not JSON, treat as regular text
+                                setMessages((prev) => [
+                                  ...prev.slice(0, -1), // Remove loading message
+                                  {
+                                    role: "assistant",
+                                    content: res.nextPrompt,
+                                  },
+                                ]);
+                              }
+                            }
+
+                            // Wait for card to be visible (only if no itinerary generated)
                             await new Promise((resolve) =>
                               setTimeout(resolve, 800)
                             );
@@ -1802,7 +1956,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     )}
                     {loading && (
                       <div className="w-full flex justify-center">
-                        <div className="rounded-2xl max-w-[80%] flex justify-center items-center shadow-md mx-0">
+                        <div className="rounded-2xl max-w-[80%] flex flex-col justify-center items-center shadow-md mx-0 px-4 py-3">
                           <div className="lds-roller text-indigo-400">
                             <div></div>
                             <div></div>
@@ -1812,6 +1966,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             <div></div>
                             <div></div>
                             <div></div>
+                          </div>
+                          <div className="text-sm text-slate-300 mt-2 text-center">
+                            {loadingMessage}
                           </div>
                         </div>
                       </div>
@@ -1878,17 +2035,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         msg.role === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div
-                        className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
-                          ${
-                            msg.role === "user"
-                              ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
-                              : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
-                          }
-                        `}
-                      >
-                        {msg.content}
-                      </div>
+                      {msg.component ? (
+                        msg.component
+                      ) : (
+                        <div
+                          className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
+                            ${
+                              msg.role === "user"
+                                ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
+                                : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
+                            }
+                          `}
+                        >
+                          {msg.content}
+                        </div>
+                      )}
                     </div>
                   ))}
                   <div ref={bottomRef} />
