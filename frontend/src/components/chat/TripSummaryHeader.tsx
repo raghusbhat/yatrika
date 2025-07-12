@@ -170,16 +170,6 @@ const TripSummaryHeader: React.FC<TripSummaryHeaderProps> = ({
               className="overflow-hidden"
             >
               <div className="pt-3 pb-2 space-y-3 bg-slate-800/20 rounded-lg mt-2 px-3">
-                {tripTheme && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Zap className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-                    <span className="text-slate-400">Type:</span>
-                    <span className="text-white font-semibold">
-                      {tripTheme}
-                    </span>
-                  </div>
-                )}
-
                 {destination && (
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />

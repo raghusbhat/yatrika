@@ -4,6 +4,7 @@ interface StepperProps {
   step: 1 | 2 | 3;
 }
 
+// Stepper: ultra-compact mobile design with fixed width
 export const Stepper: React.FC<StepperProps> = ({ step }) => {
   const steps = [
     { label: "Choose Trip\nType", shortLabel: "Trip" },

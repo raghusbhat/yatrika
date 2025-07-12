@@ -7,14 +7,19 @@ import React, {
 } from "react";
 import { clarify } from "@/api/enhancedClarify";
 import type { ClarificationState } from "@/types/clarification";
-import { initialClarificationState } from "@/types/clarification";
 import { StructuredItineraryDisplay } from "@/components/itinerary/StructuredItineraryDisplay";
 import * as ItineraryTypes from "@/types/itinerary";
 // import { SimpleItineraryTest } from "@/components/itinerary/SimpleItineraryTest";
 import ChatInputBar from "./ChatInputBar.tsx";
 import TripSummaryHeader from "@/components/chat/TripSummaryHeader";
+import { Stepper } from "@/components/chat/Stepper";
+import { GroupTypeChips } from "@/components/ui/GroupTypeChips";
+import { HorizontalChipSelector } from "@/components/ui/HorizontalChipSelector";
+import { ChatMessageList } from "@/components/chat/ChatMessageList";
+import { ChatTransitionManager } from "@/components/chat/ChatTransitionManager";
+import { useChatState } from "@/hooks/useChatState";
+import { useFormStepNavigation } from "@/hooks/useFormStepNavigation";
 import {
-  RotateCcw,
   Sun,
   Users,
   Mountain,
@@ -27,12 +32,6 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
-  Calendar,
-  DollarSign,
-  UserIcon,
-  Check,
-  Settings,
-  ChevronDown,
 } from "lucide-react";
 import { LuBackpack } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
@@ -268,165 +267,6 @@ const INTEREST_CHIPS = [
   "Local Experiences",
 ];
 
-// HorizontalChipSelector: UX-optimized horizontally scrollable chips following mobile best practices
-const HorizontalChipSelector: React.FC<{
-  options: string[];
-  value: string[];
-  onChange: (value: string[]) => void;
-  placeholder?: string;
-}> = ({ options, value, onChange }) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  // const [showLeftFade, setShowLeftFade] = useState(false);
-  // const [showRightFade, setShowRightFade] = useState(true);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, scrollLeft: 0 });
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const handleResize = () => {};
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [options.length]);
-
-  const handleChipClick = (chip: string) => {
-    if (value.includes(chip)) {
-      onChange(value.filter((v) => v !== chip));
-    } else {
-      onChange([...value, chip]);
-    }
-  };
-
-  const updateFadeIndicators = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    // const { scrollLeft, scrollWidth, clientWidth } = el;
-    // setShowLeftFade(scrollLeft > 0);
-    // setShowRightFade(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setTimeout(updateFadeIndicators, 50);
-    el.addEventListener("scroll", updateFadeIndicators);
-    window.addEventListener("resize", updateFadeIndicators);
-    const handleWheel = (e: WheelEvent) => {
-      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        e.preventDefault();
-        el.scrollBy({
-          left: e.deltaX || e.deltaY,
-          behavior: "smooth",
-        });
-      }
-    };
-    el.addEventListener("wheel", handleWheel, { passive: false });
-    const handleMouseDown = (e: MouseEvent) => {
-      setIsDragging(true);
-      setDragStart({
-        x: e.pageX,
-        scrollLeft: el.scrollLeft,
-      });
-      if (el) el.style.cursor = "grabbing";
-      e.preventDefault();
-    };
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      const x = e.pageX;
-      const walk = (x - dragStart.x) * 2;
-      if (el) {
-        el.scrollLeft = dragStart.scrollLeft - walk;
-      }
-    };
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      if (el) el.style.cursor = "grab";
-    };
-    const handleMouseLeave = () => {
-      setIsDragging(false);
-      if (el) el.style.cursor = "grab";
-    };
-    el.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    el.addEventListener("mouseleave", handleMouseLeave);
-    el.style.cursor = "grab";
-    return () => {
-      el.removeEventListener("scroll", updateFadeIndicators);
-      el.removeEventListener("wheel", handleWheel);
-      el.removeEventListener("mousedown", handleMouseDown);
-      el.removeEventListener("mouseleave", handleMouseLeave);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("resize", updateFadeIndicators);
-    };
-  }, [updateFadeIndicators, options.length, isDragging, dragStart]);
-
-  const scrollToDirection = (direction: "left" | "right") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const chipWidth = 120;
-    const scrollAmount = chipWidth * 2;
-    el.scrollBy({
-      left: direction === "left" ? -scrollAmount : scrollAmount,
-      behavior: "smooth",
-    });
-  };
-
-  return (
-    <div className="w-full flex items-center h-10 sm:h-12">
-      <button
-        type="button"
-        aria-label="Scroll left"
-        className="h-6 w-6 sm:h-8 sm:w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer mr-1.5 sm:mr-2"
-        style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
-        onClick={() => scrollToDirection("left")}
-      >
-        <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 text-slate-200" />
-      </button>
-      <div
-        ref={scrollRef}
-        className="overflow-x-auto no-scrollbar flex-1 h-full"
-        style={{
-          scrollBehavior: "smooth",
-          WebkitOverflowScrolling: "touch",
-          scrollSnapType: "x mandatory",
-        }}
-      >
-        <div className="flex gap-2 sm:gap-3 w-max items-center h-full px-1">
-          {options.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-md border text-[10px] sm:text-xs font-medium transition-all duration-200 cursor-pointer select-none flex-shrink-0 whitespace-nowrap min-w-fit scroll-snap-align-start h-6 sm:h-7 flex items-center justify-center ${
-                value.includes(chip)
-                  ? "bg-indigo-600 text-white border-indigo-500 shadow-md scale-105"
-                  : "bg-indigo-700/25 text-slate-200 border-indigo-400/40 hover:bg-indigo-700/50 hover:border-indigo-400/60"
-              }`}
-              onClick={() => handleChipClick(chip)}
-              style={{
-                scrollSnapAlign: "start",
-              }}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-      </div>
-      <button
-        type="button"
-        aria-label="Scroll right"
-        className="h-6 w-6 sm:h-8 sm:w-8 flex items-center justify-center bg-slate-800/80 border border-slate-600 rounded-full shadow-md transition-all duration-200 opacity-80 hover:bg-slate-700 hover:scale-110 cursor-pointer ml-1.5 sm:ml-2"
-        style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
-        onClick={() => scrollToDirection("right")}
-      >
-        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-slate-200" />
-      </button>
-    </div>
-  );
-};
-
 // Add new transition variants for form-to-conversation
 // const conversationTransitionVariants = {
 //   initial: {
@@ -451,43 +291,49 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   resetTrigger,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [inputValue, setInputValue] = useState("");
-  const [clarificationState, setClarificationState] =
-    useState<ClarificationState>(initialClarificationState);
-  const [messages, setMessages] = useState<
-    {
-      role: "user" | "assistant";
-      content: string;
-      component?: React.ReactNode;
-    }[]
-  >([
-    {
-      role: "assistant",
-      content:
-        "What kind of journey are you dreaming of? You can type, or show me a photo for inspiration.",
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState<string>(
-    "Processing your request..."
-  );
-  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
+
+  // Use custom hooks for state management
+  const {
+    inputValue,
+    setInputValue,
+    clarificationState,
+    setClarificationState,
+    messages,
+    setMessages,
+    loading,
+    setLoading,
+    error,
+    setError,
+    loadingMessage,
+    setLoadingMessage,
+    lastUserMessage,
+    setLastUserMessage,
+    bottomRef,
+    resetChat,
+  } = useChatState();
+
+  const {
+    currentStep,
+    setCurrentStep,
+    isNewChat,
+    setIsNewChat,
+    intentRejected,
+    setIntentRejected,
+    navDirection,
+    setNavDirection,
+    showStepper,
+    setShowStepper,
+    isTransitioning,
+    setIsTransitioning,
+    transitionPhase,
+    setTransitionPhase,
+    resetToStep1,
+  } = useFormStepNavigation();
 
   // Step management
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [isNewChat, setIsNewChat] = useState(true);
-  const [intentRejected, setIntentRejected] = useState(false);
   const [extractedSlots, setExtractedSlots] = useState<
     Partial<ClarificationState>
   >({});
-
-  // Add transition state
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showStepper, setShowStepper] = useState(true);
-  const [transitionPhase, setTransitionPhase] = useState<
-    "form" | "card" | "conversation"
-  >("form");
 
   const [initialChip, setInitialChip] = useState<string | null>(null);
   const [selectedChip, setSelectedChip] = useState<string | null>(null);
@@ -496,11 +342,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [destinationPlaceholderIdx, setDestinationPlaceholderIdx] = useState(0);
   const [destinationDisplayed, setDestinationDisplayed] = useState("");
   const [destinationIsDeleting, setDestinationIsDeleting] = useState(false);
-
-  // Add state to track navigation direction
-  const [navDirection, setNavDirection] = useState<"forward" | "back">(
-    "forward"
-  );
 
   // State for structured itinerary display
   const [, setStructuredItinerary] =
@@ -607,7 +448,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, []);
 
   // Auto-scroll to bottom when messages change
-  const bottomRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading, error]);
@@ -835,30 +675,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [initialChip]);
 
   // Enhanced reset function
-  const resetChat = useCallback(() => {
+  const handleReset = useCallback(() => {
     console.log("[ChatInterface] Resetting chat to initial state");
 
-    // Reset all state variables to initial values
-    setInputValue("");
-    setClarificationState(initialClarificationState);
-    setMessages([
-      {
-        role: "assistant",
-        content: "What kind of journey are you dreaming of?",
-      },
-    ]);
-    setLoading(false);
-    setError(null);
-    setLastUserMessage(null);
-    setIsNewChat(true);
-    setCurrentStep(1);
-    setIntentRejected(false);
+    // Use the hook's resetChat for chat state
+    resetChat();
+
+    // Reset additional state
     setExtractedSlots({});
     setInitialChip(null);
     setSelectedChip(null);
-    setIsTransitioning(false);
-    setShowStepper(true);
-    setTransitionPhase("form");
+    resetToStep1();
     setStructuredItinerary(null);
 
     // Reset form
@@ -880,15 +707,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setDestinationPlaceholderIdx(0);
     setDestinationDisplayed("");
     setDestinationIsDeleting(false);
-  }, [form]);
+  }, [form, resetChat, resetToStep1]);
 
   // Effect to trigger reset when resetTrigger changes
   React.useEffect(() => {
     if (resetTrigger && resetTrigger > 0) {
       console.log("[ChatInterface] Reset triggered from sidebar");
-      resetChat();
+      handleReset();
     }
-  }, [resetTrigger, resetChat]);
+  }, [resetTrigger, handleReset]);
 
   const canContinueStep2 = useMemo(() => {
     const groupType = form.watch("groupType");
@@ -938,69 +765,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
           <div className="relative w-full h-full overflow-hidden">
             <AnimatePresence custom={navDirection} mode="wait" initial={false}>
-              {/* Form fade out - blank screen to prevent conversation flash */}
-              {isTransitioning && transitionPhase === "form" && (
-                <motion.div
-                  key="form-fadeout"
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.1 }}
-                  className="absolute inset-0 w-full h-full bg-transparent"
-                />
-              )}
-
-              {/* Card transition */}
-              {isTransitioning && transitionPhase === "card" && (
-                <motion.div
-                  key="card-transition"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="absolute inset-0 flex flex-col items-center justify-center w-full h-full px-1 overflow-hidden"
-                >
-                  {/* Show the trip summary card with enhanced animation */}
-                  <div className="w-full flex justify-center">
-                    {messages.length > 0 && messages[0].component}
-                  </div>
-                </motion.div>
-              )}
-
-              {isTransitioning && transitionPhase === "conversation" && (
-                <motion.div
-                  key="conversation-transition"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="absolute inset-0 flex flex-col items-center justify-center w-full h-full px-1 overflow-hidden"
-                >
-                  <div className="text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-4">
-                      <Check className="w-8 h-8 text-white" />
-                    </div>
-                    <h2 className="text-xl font-semibold text-white mb-2">
-                      Perfect! Preparing Your Chat...
-                    </h2>
-                    <p className="text-slate-300 text-sm">
-                      Your trip details have been collected successfully
-                    </p>
-                    <div className="mt-6">
-                      <div className="lds-roller text-indigo-400">
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                        <div></div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
+              <ChatTransitionManager
+                isTransitioning={isTransitioning}
+                transitionPhase={transitionPhase}
+                messages={messages}
+              />
 
               {/* Step 1: Choose Trip Type */}
               {currentStep === 1 &&
@@ -1805,110 +1574,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
 
                 {/* Chat messages */}
-                <div className="flex-1 flex flex-col items-center overflow-y-auto overflow-x-hidden pt-8 pb-40 space-y-4 w-full">
-                  <div
-                    className="w-full flex flex-col gap-6 mx-auto"
-                    style={{
-                      maxWidth,
-                      paddingBottom: 100,
-                      minHeight: "min-content",
-                    }}
-                  >
-                    {messages.map((msg, idx) => (
-                      <div
-                        key={idx}
-                        className={`w-full flex ${
-                          msg.role === "user" ? "justify-end" : "justify-start"
-                        }`}
-                      >
-                        {msg.component ? (
-                          msg.component
-                        ) : (
-                          <div
-                            className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
-                            ${
-                              msg.role === "user"
-                                ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
-                                : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
-                            }
-                          `}
-                          >
-                            {msg.content}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {/* Chips for quick selection */}
-                    {chipsToShow && (
-                      <div className="flex flex-col gap-3 mt-2">
-                        <div className="flex flex-wrap gap-2 justify-start">
-                          {chipsToShow.map((chip) => (
-                            <Button
-                              key={chip.value}
-                              size="sm"
-                              className="px-5 py-2 flex items-center justify-center gap-2 rounded-md border font-semibold text-base shadow focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 transition-all duration-150 bg-indigo-700/30 text-white border-indigo-400/40 hover:bg-indigo-700/50"
-                              onClick={() => handleChipClick(chip.value)}
-                              disabled={loading}
-                              type="button"
-                            >
-                              {chip.label}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {loading && (
-                      <div className="w-full flex justify-center">
-                        <div className="rounded-2xl max-w-[80%] flex flex-col justify-center items-center shadow-md mx-0 px-4 py-3">
-                          <div className="lds-roller text-indigo-400">
-                            <div></div>
-                            <div></div>
-                            <div></div>
-                            <div></div>
-                            <div></div>
-                            <div></div>
-                            <div></div>
-                            <div></div>
-                          </div>
-                          <div className="text-sm text-slate-300 mt-2 text-center">
-                            {loadingMessage}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {error && (
-                      <div className="w-full flex justify-start">
-                        <div className="px-5 py-3 rounded-2xl max-w-[80%] text-base font-sans bg-rose-900 text-rose-200 rounded-bl-xs border border-rose-500 shadow-md mx-0 flex items-center gap-2">
-                          {error}
-                          {lastUserMessage && (
-                            <button
-                              type="button"
-                              aria-label="Retry"
-                              className="ml-2 text-rose-200 hover:text-white focus:outline-none"
-                              onClick={(e) =>
-                                handleSubmit(
-                                  e as React.FormEvent,
-                                  lastUserMessage
-                                )
-                              }
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                background: "none",
-                                border: "none",
-                                padding: 0,
-                                cursor: "pointer",
-                              }}
-                            >
-                              <RotateCcw className="w-5 h-5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    <div ref={bottomRef} />
-                  </div>
-                </div>
+                <ChatMessageList
+                  messages={messages}
+                  chipsToShow={chipsToShow}
+                  onChipClick={handleChipClick}
+                  loading={loading}
+                  loadingMessage={loadingMessage}
+                  error={error}
+                  lastUserMessage={lastUserMessage}
+                  onRetry={(message) =>
+                    handleSubmit(
+                      { preventDefault: () => {} } as React.FormEvent,
+                      message
+                    )
+                  }
+                  maxWidth={maxWidth}
+                />
                 {/* Input bar - floating at bottom, centered */}
                 <div className="w-full flex justify-center px-4 pb-6 flex-shrink-0">
                   <div style={{ maxWidth, width: "100%" }}>
@@ -1981,147 +1662,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </div>
       </section>
     </main>
-  );
-};
-
-// Single-select chips for group type - much more compact and mobile-friendly
-const GroupTypeChips: React.FC<{
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
-}> = ({ options, value, onChange }) => {
-  return (
-    <div className="flex gap-1.5 sm:gap-2 w-full">
-      {options.map((opt) => (
-        <Button
-          key={opt}
-          type="button"
-          size="sm"
-          className={`flex-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded-md border text-xs sm:text-sm font-medium transition-all duration-150 cursor-pointer select-none
-            ${
-              value === opt.toLowerCase()
-                ? "bg-indigo-600 text-white border-indigo-500 shadow"
-                : "bg-indigo-700/20 text-slate-200 border-indigo-400/30 hover:bg-indigo-700/40"
-            }
-          `}
-          style={{
-            minWidth: 0,
-            minHeight: 32,
-            boxShadow: "none",
-            outline: "none",
-          }}
-          onClick={() => onChange(opt)}
-          tabIndex={0}
-        >
-          {opt}
-        </Button>
-      ))}
-    </div>
-  );
-};
-
-// Stepper: ultra-compact mobile design with fixed width
-const Stepper: React.FC<{ step: 1 | 2 | 3 }> = ({ step }) => {
-  const steps = [
-    { label: "Choose Trip\nType", shortLabel: "Trip" },
-    { label: "Basic Details", shortLabel: "Details" },
-    { label: "Preferences\n& Extras", shortLabel: "Prefs" },
-  ];
-
-  return (
-    <div className="w-full flex justify-center px-2 py-4 sm:px-4 sm:py-6">
-      <div className="relative w-80 sm:w-96">
-        {/* Background line - positioned between circle centers */}
-        <div
-          className="absolute top-3 sm:top-4 h-0.5 bg-slate-700"
-          style={{
-            left: "calc(16.67% + 12px)",
-            right: "calc(16.67% + 12px)",
-          }}
-        />
-        {/* Progress line - positioned between circle centers */}
-        <div
-          className="absolute top-3 sm:top-4 h-0.5 bg-indigo-500 transition-all duration-500 ease-out"
-          style={
-            step === 1
-              ? { display: "none" }
-              : step === 2
-              ? {
-                  left: "calc(16.67% + 12px)",
-                  width: "calc(33.33% - 24px)",
-                }
-              : {
-                  left: "calc(16.67% + 12px)",
-                  right: "calc(16.67% + 12px)",
-                }
-          }
-        />
-        {/* Steps - fixed positioning */}
-        <div className="relative flex">
-          {steps.map((stepItem, index) => {
-            const stepNumber = index + 1;
-            const isCompleted = step > stepNumber;
-            const isActive = step === stepNumber;
-            return (
-              <div
-                key={stepItem.label}
-                className="flex flex-col items-center"
-                style={{
-                  width: "33.33%",
-                  position: "relative",
-                }}
-              >
-                <div
-                  className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-semibold
-                    transition-all duration-200 relative z-10 flex-shrink-0
-                    ${
-                      isCompleted
-                        ? "bg-indigo-600 text-white border-2 border-indigo-500"
-                        : isActive
-                        ? "bg-indigo-600 text-white border-2 border-indigo-400"
-                        : "bg-slate-900 text-slate-400 border-2 border-slate-600"
-                    }`}
-                  aria-current={isActive ? "step" : undefined}
-                >
-                  {isCompleted ? (
-                    <svg
-                      className="w-2.5 h-2.5 sm:w-3 sm:h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  ) : (
-                    stepNumber
-                  )}
-                </div>
-                <div
-                  className={`mt-1 text-[8px] sm:text-[10px] font-medium text-center px-0.5 leading-tight ${
-                    isActive
-                      ? "text-indigo-300"
-                      : isCompleted
-                      ? "text-indigo-200"
-                      : "text-slate-400"
-                  }`}
-                >
-                  {/* Show short label on mobile, full label on larger screens */}
-                  <span className="hidden sm:block whitespace-pre-line">
-                    {stepItem.label}
-                  </span>
-                  <span className="block sm:hidden">{stepItem.shortLabel}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
   );
 };
 
