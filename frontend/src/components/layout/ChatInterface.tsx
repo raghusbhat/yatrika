@@ -12,14 +12,15 @@ import { StructuredItineraryDisplay } from "@/components/itinerary/StructuredIti
 import * as ItineraryTypes from "@/types/itinerary";
 // import { SimpleItineraryTest } from "@/components/itinerary/SimpleItineraryTest";
 import ChatInputBar from "./ChatInputBar.tsx";
+import TripSummaryHeader from "@/components/chat/TripSummaryHeader";
 import {
   RotateCcw,
   Sun,
   Users,
   Mountain,
   Leaf,
-  ArrowRight,
-  ArrowLeft,
+  // ArrowRight,
+  // ArrowLeft,
   Building2,
   Zap,
   MapPin,
@@ -30,6 +31,8 @@ import {
   DollarSign,
   UserIcon,
   Check,
+  Settings,
+  ChevronDown,
 } from "lucide-react";
 import { LuBackpack } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
@@ -271,10 +274,10 @@ const HorizontalChipSelector: React.FC<{
   value: string[];
   onChange: (value: string[]) => void;
   placeholder?: string;
-}> = ({ options, value, onChange, placeholder }) => {
+}> = ({ options, value, onChange }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [showLeftFade, setShowLeftFade] = useState(false);
-  const [showRightFade, setShowRightFade] = useState(true);
+  // const [showLeftFade, setShowLeftFade] = useState(false);
+  // const [showRightFade, setShowRightFade] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, scrollLeft: 0 });
 
@@ -297,9 +300,9 @@ const HorizontalChipSelector: React.FC<{
   const updateFadeIndicators = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    setShowLeftFade(scrollLeft > 0);
-    setShowRightFade(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
+    // const { scrollLeft, scrollWidth, clientWidth } = el;
+    // setShowLeftFade(scrollLeft > 0);
+    // setShowRightFade(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
   }, []);
 
   useEffect(() => {
@@ -425,161 +428,23 @@ const HorizontalChipSelector: React.FC<{
 };
 
 // Add new transition variants for form-to-conversation
-const conversationTransitionVariants = {
-  initial: {
-    opacity: 0,
-    y: 20,
-    scale: 0.95,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-  },
-  exit: {
-    opacity: 0,
-    y: -20,
-    scale: 0.95,
-  },
-};
-
-// Trip Summary Card Component
-const TripSummaryCard: React.FC<{
-  tripData: Partial<ClarificationState>;
-  tripTheme?: string;
-  formData?: any;
-}> = ({ tripData, tripTheme, formData }) => {
-  const formatDateRange = () => {
-    if (formData?.flexibleDates) {
-      return { dateRange: "Flexible dates", days: null };
-    }
-    if (formData?.startDate && formData?.endDate) {
-      const start = format(new Date(formData.startDate), "MMM dd");
-      const end = format(new Date(formData.endDate), "MMM dd, yyyy");
-      const days =
-        differenceInCalendarDays(
-          new Date(formData.endDate),
-          new Date(formData.startDate)
-        ) + 1;
-      return {
-        dateRange: `${start} - ${end}`,
-        days: `${days} ${days === 1 ? "day" : "days"}`,
-      };
-    }
-    return { dateRange: "Dates not specified", days: null };
-  };
-
-  const formatInterests = () => {
-    if (!formData?.interests || formData.interests.length === 0) return null;
-    return (
-      formData.interests.slice(0, 4).join(", ") +
-      (formData.interests.length > 4 ? "..." : "")
-    );
-  };
-
-  const dateInfo = formatDateRange();
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className="w-full max-w-[98%] mx-0 bg-gradient-to-br from-indigo-900/40 to-slate-800/60 border border-indigo-500/30 rounded-xl p-4 sm:p-5 shadow-lg backdrop-blur-sm"
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center">
-          <Check className="w-4 h-4 text-white" />
-        </div>
-        <h3 className="text-base sm:text-lg font-semibold text-white">
-          Trip Details Collected
-        </h3>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 text-sm">
-        {tripTheme && (
-          <div className="flex items-center gap-2 text-slate-300">
-            <Zap className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="text-slate-400">Type:</span>
-            <span className="font-semibold text-white">{tripTheme}</span>
-          </div>
-        )}
-
-        {(tripData.destination || formData?.destination) && (
-          <div className="flex items-center gap-2 text-slate-300">
-            <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="text-slate-400">Destination:</span>
-            <span className="font-semibold text-white">
-              {tripData.destination || formData?.destination}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-start gap-2 text-slate-300">
-          <Calendar className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
-          <span className="text-slate-400 flex-shrink-0">Dates:</span>
-          <div className="flex flex-col">
-            <span className="font-semibold text-white break-words">
-              {dateInfo.dateRange}
-            </span>
-            {dateInfo.days && (
-              <span className="text-xs text-slate-400 mt-0.5">
-                {dateInfo.days}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {(tripData.groupType || formData?.groupType) && (
-          <div className="flex items-center gap-2 text-slate-300">
-            <UserIcon className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="text-slate-400">Group:</span>
-            <span className="font-semibold text-white capitalize">
-              {tripData.groupType || formData?.groupType}
-            </span>
-          </div>
-        )}
-
-        {(tripData.budget || formData?.budget) && !formData?.flexibleBudget && (
-          <div className="flex items-center gap-2 text-slate-300">
-            <DollarSign className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="text-slate-400">Budget:</span>
-            <span className="font-semibold text-white">
-              {tripData.budget || formData?.budget}
-            </span>
-          </div>
-        )}
-
-        {formData?.flexibleBudget && (
-          <div className="flex items-center gap-2 text-slate-300">
-            <DollarSign className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="text-slate-400">Budget:</span>
-            <span className="font-semibold text-white">Flexible</span>
-          </div>
-        )}
-      </div>
-
-      {formatInterests() && (
-        <div className="mt-3 pt-3 border-t border-slate-700/50">
-          <div className="flex items-start gap-2 text-slate-300">
-            <Heart className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <span className="text-slate-400">Interests:</span>
-              <div className="font-semibold text-white text-xs mt-1">
-                {formatInterests()}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-4 pt-3 border-t border-slate-700/50">
-        <p className="text-xs text-slate-400 text-center">
-          Ready to create your personalized itinerary!
-        </p>
-      </div>
-    </motion.div>
-  );
-};
+// const conversationTransitionVariants = {
+//   initial: {
+//     opacity: 0,
+//     y: 20,
+//     scale: 0.95,
+//   },
+//   animate: {
+//     opacity: 1,
+//     y: 0,
+//     scale: 1,
+//   },
+//   exit: {
+//     opacity: 0,
+//     y: -20,
+//     scale: 0.95,
+//   },
+// };
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   sidebarWidth,
@@ -638,8 +503,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   );
 
   // State for structured itinerary display
-  const [structuredItinerary, setStructuredItinerary] =
+  const [, setStructuredItinerary] =
     useState<ItineraryTypes.StructuredItinerary | null>(null);
+
+  // State for sticky header (unused but kept for future enhancements)
+  // const [showStickyHeader, setShowStickyHeader] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -700,6 +568,43 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       specialNeeds: extractedSlots.specialNeeds || "",
     });
   }, [extractedSlots, form]);
+
+  // Determine when to show sticky header
+  const shouldShowStickyHeader = useMemo(() => {
+    // Show if we have trip data and we're in conversation mode
+    const hasBasicTripData =
+      extractedSlots.destination ||
+      form.getValues().destination ||
+      extractedSlots.groupType ||
+      form.getValues().groupType ||
+      selectedChip ||
+      initialChip;
+
+    return (
+      hasBasicTripData &&
+      !isNewChat &&
+      !isTransitioning &&
+      currentStep === 1 &&
+      !intentRejected
+    );
+  }, [
+    extractedSlots,
+    form,
+    selectedChip,
+    initialChip,
+    isNewChat,
+    isTransitioning,
+    currentStep,
+    intentRejected,
+  ]);
+
+  // Handle edit action from sticky header
+  const handleEditFromHeader = useCallback(() => {
+    setCurrentStep(2);
+    setIsNewChat(true);
+    setShowStepper(true);
+    setTransitionPhase("form");
+  }, []);
 
   // Auto-scroll to bottom when messages change
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -1606,25 +1511,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 : null,
                           } as ClarificationState;
 
-                          // Prepare trip summary card
-                          const summaryCard = (
-                            <TripSummaryCard
-                              tripData={clarifyPayload}
-                              tripTheme={initialChip || ""}
-                              formData={values}
-                            />
-                          );
-
-                          setMessages([
-                            {
-                              role: "assistant",
-                              content: "",
-                              component: summaryCard,
-                            },
-                          ]);
-
-                          // Step 4: Show card at final position
-                          setTransitionPhase("card");
+                          // Skip card phase and go directly to conversation
+                          setTransitionPhase("conversation");
 
                           // Step 5: API call during card display
                           setLoading(true);
@@ -1899,10 +1787,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-                className="w-full h-full flex flex-col"
+                className="w-full h-full flex flex-col items-center"
               >
+                {/* Sticky Trip Summary Header */}
+                {shouldShowStickyHeader && (
+                  <div className="w-full flex justify-center px-4 py-3 flex-shrink-0">
+                    <TripSummaryHeader
+                      tripData={extractedSlots}
+                      tripTheme={selectedChip || initialChip || undefined}
+                      formData={form.getValues()}
+                      onEdit={handleEditFromHeader}
+                      isVisible={true}
+                      maxWidth={maxWidth}
+                      sidebarWidth={sidebarWidth}
+                    />
+                  </div>
+                )}
+
                 {/* Chat messages */}
-                <div className="flex-1 flex flex-col items-center overflow-y-auto overflow-x-hidden pt-8 pb-32 mb-8 space-y-4 w-full">
+                <div className="flex-1 flex flex-col items-center overflow-y-auto overflow-x-hidden pt-8 pb-40 space-y-4 w-full">
                   <div
                     className="w-full flex flex-col gap-6 mx-auto"
                     style={{
@@ -2006,27 +1909,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <div ref={bottomRef} />
                   </div>
                 </div>
-                {/* Input bar - floating, fixed at bottom, not overlapping sidebar */}
-                <ChatInputBar
-                  inputValue={inputValue}
-                  setInputValue={setInputValue}
-                  loading={loading}
-                  handleSubmit={handleSubmit}
-                  fileInputRef={fileInputRef}
-                  displayed=""
-                  sidebarWidth={sidebarWidth}
-                  maxWidth={maxWidth}
-                />
+                {/* Input bar - floating at bottom, centered */}
+                <div className="w-full flex justify-center px-4 pb-6 flex-shrink-0">
+                  <div style={{ maxWidth, width: "100%" }}>
+                    <ChatInputBar
+                      inputValue={inputValue}
+                      setInputValue={setInputValue}
+                      loading={loading}
+                      handleSubmit={handleSubmit}
+                      fileInputRef={fileInputRef}
+                      displayed=""
+                      sidebarWidth={0}
+                      maxWidth={maxWidth}
+                    />
+                  </div>
+                </div>
               </motion.div>
             )}
 
           {/* Show chat history even when intent is rejected */}
           {intentRejected && !isTransitioning && (
-            <>
-              <div className="flex-1 flex flex-col items-center overflow-hidden pt-8 pb-32 mb-8 space-y-4 w-full">
+            <div className="w-full h-full flex flex-col items-center">
+              <div className="flex-1 flex flex-col items-center overflow-hidden pt-8 pb-8 space-y-4 w-full">
                 <div
                   className="w-full flex flex-col gap-6 mx-auto"
-                  style={{ maxWidth, paddingBottom: 100 }}
+                  style={{ maxWidth }}
                 >
                   {messages.map((msg, idx) => (
                     <div
@@ -2055,17 +1962,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <div ref={bottomRef} />
                 </div>
               </div>
-              <ChatInputBar
-                inputValue={inputValue}
-                setInputValue={setInputValue}
-                loading={loading}
-                handleSubmit={handleSubmit}
-                fileInputRef={fileInputRef}
-                displayed=""
-                sidebarWidth={sidebarWidth}
-                maxWidth={maxWidth}
-              />
-            </>
+              <div className="w-full flex justify-center px-4 pb-6 flex-shrink-0">
+                <div style={{ maxWidth, width: "100%" }}>
+                  <ChatInputBar
+                    inputValue={inputValue}
+                    setInputValue={setInputValue}
+                    loading={loading}
+                    handleSubmit={handleSubmit}
+                    fileInputRef={fileInputRef}
+                    displayed=""
+                    sidebarWidth={0}
+                    maxWidth={maxWidth}
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </section>

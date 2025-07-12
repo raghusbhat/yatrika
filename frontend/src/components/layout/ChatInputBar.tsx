@@ -148,21 +148,10 @@ const ChatInputBar: React.FC<ChatInputBarProps> = ({
   }, [loading]);
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="fixed bottom-6 flex justify-center z-50 pointer-events-none transition-all duration-300"
-      style={{
-        left: sidebarWidth,
-        width: `calc(100vw - ${sidebarWidth}px)`,
-        boxSizing: "border-box",
-        transition:
-          "left 0.3s cubic-bezier(0.4,0,0.2,1) 80ms, width 0.3s cubic-bezier(0.4,0,0.2,1) 80ms",
-      }}
-    >
+    <form onSubmit={handleSubmit} className="w-full">
       <div
-        className="pointer-events-auto w-full bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-600/60 rounded-xl px-3 py-3 flex flex-col gap-2 transition-all duration-150 mx-auto"
+        className="w-full bg-slate-800/95 backdrop-blur-md shadow-2xl border border-slate-600/60 rounded-xl px-3 py-3 flex flex-col gap-2 transition-all duration-150"
         style={{
-          maxWidth,
           boxShadow:
             "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.1)",
         }}
