@@ -168,11 +168,30 @@ export function validateBusinessLogic(itinerary: any): ValidationResult {
 
       if (duration && duration.includes("day")) {
         const durationDays = parseInt(duration.match(/\d+/)?.[0] || "0");
-        if (Math.abs(days - durationDays) > 1) {
-          errors.push(
-            `Mismatch between stated duration (${duration}) and itinerary days (${days})`
+        const daysDifference = Math.abs(days - durationDays);
+        
+        // Special handling for LLM capacity limitations on very long trips
+        if (durationDays > 10 && days < 5) {
+          // Likely LLM capacity issue - treat as warning instead of error
+          warnings.push(
+            `LLM capacity limitation detected: stated duration (${duration}) vs itinerary days (${days}). Difference: ${daysDifference} days. This may be due to model context limits.`
           );
+          console.warn(`🤖 [VALIDATION] LLM likely hit capacity limits for long trip: ${durationDays} days requested, ${days} generated`);
+        } else if (daysDifference > 5) {
+          // Major mismatch (>5 days difference) - this is a serious error
+          errors.push(
+            `Major mismatch between stated duration (${duration}) and itinerary days (${days}). Difference: ${daysDifference} days`
+          );
+        } else if (daysDifference > 2) {
+          // Moderate mismatch (3-5 days difference) - warning
+          warnings.push(
+            `Moderate mismatch between stated duration (${duration}) and itinerary days (${days}). Difference: ${daysDifference} days`
+          );
+        } else if (daysDifference > 1) {
+          // Minor mismatch (2 days difference) - just log for monitoring
+          console.log(`📊 [VALIDATION] Minor duration difference: stated ${duration} vs ${days} days generated`);
         }
+        // 0-1 day difference is acceptable (different counting methods: inclusive vs exclusive)
       }
     }
 

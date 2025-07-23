@@ -17,6 +17,7 @@ import { GroupTypeChips } from "@/components/ui/GroupTypeChips";
 import { HorizontalChipSelector } from "@/components/ui/HorizontalChipSelector";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { ChatTransitionManager } from "@/components/chat/ChatTransitionManager";
+import { ThinkingSimulator } from "@/components/chat/ThinkingSimulator";
 import { useChatState } from "@/hooks/useChatState";
 import { useFormStepNavigation } from "@/hooks/useFormStepNavigation";
 import {
@@ -571,7 +572,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleStep1Continue = () => {
     if (selectedChip) {
       setNavDirection("forward");
-      setMessages((prev) => [...prev, { role: "user", content: selectedChip }]);
+      // Don't add the selected chip as a message to avoid showing trip type bubble
       setLastUserMessage(selectedChip);
       setIsNewChat(false);
       setCurrentStep(2);
@@ -663,8 +664,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     messages.filter((m) => m.role === "assistant").slice(-1)[0]?.content || "";
   const chipsToShow = getChipsForPrompt(lastAssistantMsg);
 
-  // Responsive max width for chat area and input bar
-  const maxWidth = Math.min(900, window.innerWidth - sidebarWidth - 32);
+  // Calculate available width for chat area (excluding sidebar)
+  const availableWidth = typeof window !== 'undefined' ? window.innerWidth - sidebarWidth : 1200;
+
+  // Check if we're currently showing thinking simulation
+  const hasThinkingMessage = useMemo(() => {
+    return messages.some((msg: any) => msg.isThinking);
+  }, [messages]);
 
   // Filter fields: if Surprise Me, omit destination
   const fieldsToShow = useMemo(() => {
@@ -756,8 +762,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 transition={{ duration: 0.5, ease: "easeInOut" }}
                 className="w-full flex justify-center items-center flex-shrink-0"
               >
-                <div className="w-full max-w-2xl px-3 sm:px-4">
-                  <Stepper step={currentStep as 1 | 2 | 3} />
+                <div className="w-full px-3 sm:px-4">
+                  <div className="max-w-2xl mx-auto">
+                    <Stepper step={currentStep as 1 | 2 | 3} />
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -793,8 +801,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <div className="mb-4 sm:mb-6 text-base sm:text-lg font-medium text-slate-100 text-center w-full px-2 sm:px-0">
                       What kind of journey are you dreaming of?
                     </div>
-                    <div className="w-full max-w-sm sm:max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 px-2 sm:px-4">
-                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 w-full">
+                    <div className="w-full max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 px-4 sm:px-6">
+                      <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full">
                         {INITIAL_CHIPS.map((chip) => (
                           <Button
                             key={chip.value}
@@ -827,7 +835,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         ))}
                       </div>
                       {/* Navigation buttons */}
-                      <div className="grid grid-cols-3 gap-2 sm:grid sm:grid-cols-3 sm:gap-4 mt-4 sm:mt-6 w-full">
+                      <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-6 w-full">
                         <Button
                           type="button"
                           variant="outline"
@@ -916,7 +924,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </div>
                   <Form {...form}>
                     <form
-                      className="w-full max-w-sm sm:max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 px-2 sm:px-4"
+                      className="w-full max-w-3xl mx-auto flex flex-col gap-4 sm:gap-6 px-4 sm:px-6"
                       onSubmit={form.handleSubmit(async (values) => {
                         // Just move to step 3, don't submit to backend yet
                         const processedValues: Partial<ClarificationState> = {
@@ -1112,7 +1120,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       ))}
 
                       {/* Navigation buttons */}
-                      <div className="grid grid-cols-3 gap-2 sm:grid sm:grid-cols-3 sm:gap-4 mt-4 sm:mt-6 w-full">
+                      <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-6 w-full">
                         <Button
                           type="button"
                           size="sm"
@@ -1226,7 +1234,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     Almost there! Add a few preferences to enhance your trip.
                   </div>
                   {/* Common parent for chip selector and form fields */}
-                  <div className="w-full max-w-sm sm:max-w-3xl mx-auto px-2 sm:px-4">
+                  <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
                     <Form {...form}>
                       <form
                         className="w-full flex flex-col gap-4 sm:gap-6"
@@ -1280,22 +1288,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                 : null,
                           } as ClarificationState;
 
-                          // Skip card phase and go directly to conversation
-                          setTransitionPhase("conversation");
+                          // Step 4: Prepare thinking message first
+                          const thinkingMessage = {
+                            role: "assistant",
+                            content: "🤖 Crafting your perfect itinerary...",
+                            component: (
+                              <ThinkingSimulator
+                                destination={clarifyPayload.destination}
+                                interests={clarifyPayload.interests as string[]}
+                                groupType={clarifyPayload.groupType}
+                                budget={clarifyPayload.budget}
+                                tripTheme={clarifyPayload.tripTheme}
+                              />
+                            ),
+                            isThinking: true,
+                          };
 
-                          // Step 5: API call during card display
+                          // Step 5: Add thinking message and switch to conversation mode
+                          setMessages((prev) => [...prev, thinkingMessage]);
+                          setIsNewChat(false); // Enable conversation view
+                          setTransitionPhase("conversation");
+                          setIsTransitioning(false); // Complete transition to show conversation
+                          
+                          // Step 6: Start API call
                           setLoading(true);
                           setError(null);
-
-                          // Add progress message
-                          setMessages((prev) => [
-                            ...prev,
-                            {
-                              role: "assistant",
-                              content:
-                                "🤖 Generating your personalized itinerary...",
-                            },
-                          ]);
 
                           try {
                             const res = await clarify("", clarifyPayload);
@@ -1314,9 +1331,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                   // It's a structured itinerary!
                                   setStructuredItinerary(parsedItinerary);
 
-                                  // Replace loading message with success + component
-                                  setMessages((prev) => [
-                                    ...prev.slice(0, -1), // Remove loading message
+                                  // Replace thinking simulation with success + component
+                                  const resultMessages = [
                                     {
                                       role: "assistant",
                                       content:
@@ -1327,60 +1343,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                         />
                                       ),
                                     },
-                                  ]);
+                                  ];
 
-                                  // Step 6: Transition to conversation to show the itinerary
-                                  setTransitionPhase("conversation");
-                                  await new Promise((resolve) =>
-                                    setTimeout(resolve, 300)
-                                  );
+                                  // Remove thinking messages and add result
+                                  setMessages((prev) => {
+                                    const nonThinkingMessages = prev.filter(
+                                      (msg: any) => !msg.isThinking
+                                    );
+                                    return [...nonThinkingMessages, ...resultMessages];
+                                  });
 
-                                  // Complete transition
-                                  setIsTransitioning(false);
-                                  setIsNewChat(false);
                                   return; // Exit early - we have our itinerary
                                 } else {
                                   // Regular text response
-                                  setMessages((prev) => [
-                                    ...prev.slice(0, -1), // Remove loading message
+                                  const resultMessages = [
                                     {
                                       role: "assistant",
                                       content: res.nextPrompt,
                                     },
-                                  ]);
+                                  ];
+
+                                  // Remove thinking messages and add result
+                                  setMessages((prev) => {
+                                    const nonThinkingMessages = prev.filter(
+                                      (msg: any) => !msg.isThinking
+                                    );
+                                    return [...nonThinkingMessages, ...resultMessages];
+                                  });
                                 }
                               } catch (parseError) {
                                 // Not JSON, treat as regular text
-                                setMessages((prev) => [
-                                  ...prev.slice(0, -1), // Remove loading message
+                                const resultMessages = [
                                   {
                                     role: "assistant",
                                     content: res.nextPrompt,
                                   },
-                                ]);
+                                ];
+
+                                // Remove thinking messages and add result
+                                setMessages((prev) => {
+                                  const nonThinkingMessages = prev.filter(
+                                    (msg: any) => !msg.isThinking
+                                  );
+                                  return [...nonThinkingMessages, ...resultMessages];
+                                });
+
+                                // Clean up thinking simulation already handled above
                               }
                             }
 
-                            // Wait for card to be visible (only if no itinerary generated)
-                            await new Promise((resolve) =>
-                              setTimeout(resolve, 800)
-                            );
-
-                            // Step 6: Transition to conversation
-                            setTransitionPhase("conversation");
-                            await new Promise((resolve) =>
-                              setTimeout(resolve, 300)
-                            );
-
-                            // Complete transition
-                            setIsTransitioning(false);
-                            setIsNewChat(false);
+                            // Transition already completed
                           } catch (err) {
                             let msg = "Sorry, something went wrong.";
                             if (err instanceof Error && err.message)
                               msg = err.message;
+
+                            // Clean up thinking simulation on error
+                            setMessages((prev) => prev.filter((msg: any) => !msg.isThinking));
+
                             setError(msg);
-                            setIsTransitioning(false);
+                            setIsTransitioning(true);
+                            setIsNewChat(true);
                             setShowStepper(true);
                             setCurrentStep(3);
                             setTransitionPhase("form");
@@ -1484,7 +1507,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         ))}
 
                         {/* Navigation buttons */}
-                        <div className="grid grid-cols-3 gap-2 sm:grid sm:grid-cols-3 sm:gap-4 mt-4 sm:mt-6 w-full">
+                        <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-6 w-full">
                           <Button
                             type="button"
                             size="sm"
@@ -1556,95 +1579,44 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-                className="w-full h-full flex flex-col items-center"
+                className="w-full h-full flex flex-col"
               >
                 {/* Sticky Trip Summary Header */}
                 {shouldShowStickyHeader && (
-                  <div className="w-full flex justify-center px-4 py-3 flex-shrink-0">
+                  <div className="w-full px-6 py-3 flex-shrink-0">
                     <TripSummaryHeader
                       tripData={extractedSlots}
                       tripTheme={selectedChip || initialChip || undefined}
                       formData={form.getValues()}
                       onEdit={handleEditFromHeader}
                       isVisible={true}
-                      maxWidth={maxWidth}
+                      maxWidth={availableWidth}
                       sidebarWidth={sidebarWidth}
                     />
                   </div>
                 )}
 
-                {/* Chat messages */}
-                <ChatMessageList
-                  messages={messages}
-                  chipsToShow={chipsToShow}
-                  onChipClick={handleChipClick}
-                  loading={loading}
-                  loadingMessage={loadingMessage}
-                  error={error}
-                  lastUserMessage={lastUserMessage}
-                  onRetry={(message) =>
-                    handleSubmit(
-                      { preventDefault: () => {} } as React.FormEvent,
-                      message
-                    )
-                  }
-                  maxWidth={maxWidth}
-                />
-                {/* Input bar - floating at bottom, centered */}
-                <div className="w-full flex justify-center px-4 pb-6 flex-shrink-0">
-                  <div style={{ maxWidth, width: "100%" }}>
-                    <ChatInputBar
-                      inputValue={inputValue}
-                      setInputValue={setInputValue}
-                      loading={loading}
-                      handleSubmit={handleSubmit}
-                      fileInputRef={fileInputRef}
-                      displayed=""
-                      sidebarWidth={0}
-                      maxWidth={maxWidth}
-                    />
-                  </div>
+                {/* Chat messages with proper full width layout - hide scrollbar during thinking */}
+                <div className={`flex-1 w-full overflow-y-auto ${hasThinkingMessage ? 'no-scrollbar' : 'scrollbar-gutter-stable'}`}>
+                  <ChatMessageList
+                    messages={messages}
+                    chipsToShow={chipsToShow}
+                    onChipClick={handleChipClick}
+                    loading={loading}
+                    loadingMessage={loadingMessage}
+                    error={error}
+                    lastUserMessage={lastUserMessage}
+                    onRetry={(message) =>
+                      handleSubmit(
+                        { preventDefault: () => {} } as React.FormEvent,
+                        message
+                      )
+                    }
+                    maxWidth={availableWidth}
+                  />
                 </div>
-              </motion.div>
-            )}
-
-          {/* Show chat history even when intent is rejected */}
-          {intentRejected && !isTransitioning && (
-            <div className="w-full h-full flex flex-col items-center">
-              <div className="flex-1 flex flex-col items-center overflow-hidden pt-8 pb-8 space-y-4 w-full">
-                <div
-                  className="w-full flex flex-col gap-6 mx-auto"
-                  style={{ maxWidth }}
-                >
-                  {messages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`w-full flex ${
-                        msg.role === "user" ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      {msg.component ? (
-                        msg.component
-                      ) : (
-                        <div
-                          className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
-                            ${
-                              msg.role === "user"
-                                ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
-                                : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
-                            }
-                          `}
-                        >
-                          {msg.content}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <div ref={bottomRef} />
-                </div>
-              </div>
-              <div className="w-full flex justify-center px-4 pb-6 flex-shrink-0">
-                <div style={{ maxWidth, width: "100%" }}>
+                {/* Input bar - full width with consistent padding */}
+                <div className="w-full px-6 pb-6 flex-shrink-0">
                   <ChatInputBar
                     inputValue={inputValue}
                     setInputValue={setInputValue}
@@ -1653,9 +1625,57 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     fileInputRef={fileInputRef}
                     displayed=""
                     sidebarWidth={0}
-                    maxWidth={maxWidth}
+                    maxWidth={availableWidth}
                   />
                 </div>
+              </motion.div>
+            )}
+
+          {/* Show chat history even when intent is rejected */}
+          {intentRejected && !isTransitioning && (
+            <div className="w-full h-full flex flex-col">
+              <div className="flex-1 overflow-y-auto scrollbar-gutter-stable">
+                <div className="px-6 pt-8 pb-8">
+                  <div className="w-full flex flex-col gap-6 mx-auto">
+                    {messages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`w-full flex ${
+                          msg.role === "user" ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        {msg.component ? (
+                          msg.component
+                        ) : (
+                          <div
+                            className={`px-5 py-3 rounded-xl max-w-[80%] text-base font-sans whitespace-pre-line shadow-md transition-all duration-200 mx-0
+                              ${
+                                msg.role === "user"
+                                  ? "bg-indigo-800/50 text-white border border-indigo-500/60 rounded-br-xs"
+                                  : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700"
+                              }
+                            `}
+                          >
+                            {msg.content}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div ref={bottomRef} />
+                  </div>
+                </div>
+              </div>
+              <div className="w-full px-6 pb-6 flex-shrink-0">
+                <ChatInputBar
+                  inputValue={inputValue}
+                  setInputValue={setInputValue}
+                  loading={loading}
+                  handleSubmit={handleSubmit}
+                  fileInputRef={fileInputRef}
+                  displayed=""
+                  sidebarWidth={0}
+                  maxWidth={availableWidth}
+                />
               </div>
             </div>
           )}

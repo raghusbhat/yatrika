@@ -105,27 +105,30 @@
   --font-sans: "Inter", sans-serif;
 }
 
-/* Custom scrollbar for dark theme */
-::-webkit-scrollbar {
-  width: 10px;
-  background: #181926;
-}
-::-webkit-scrollbar-thumb {
-  background: #6366f1; /* indigo-500 */
-  border-radius: 8px;
-  border: 2px solid #181926;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #818cf8; /* indigo-400 */
-}
-::-webkit-scrollbar-corner {
-  background: #181926;
-}
+/* Remove duplicate scrollbar styling - handled below */
 
 /* For Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #6366f1 #181926;
+  scrollbar-color: #6366f1 #0f172a;
+}
+
+/* Tailwind scrollbar utilities */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-track-slate-800 {
+  --scrollbar-track: #1e293b;
+}
+
+.scrollbar-thumb-indigo-600 {
+  --scrollbar-thumb: #4f46e5;
+}
+
+.scrollbar-thumb-indigo-600:hover,
+.hover\:scrollbar-thumb-indigo-500:hover {
+  --scrollbar-thumb: #6366f1;
 }
 
 /* Animated roller loader for chat processing */
@@ -227,4 +230,44 @@
 .no-scrollbar {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
+}
+
+/* Scrollbar gutter utility for stable layout */
+.scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
+/* Thinking process specific styles */
+.thinking-container {
+  width: 100%;
+  max-width: none;
+  overflow: hidden;
+}
+
+.thinking-full-width {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding-left: calc(50vw - 50%);
+  padding-right: calc(50vw - 50%);
+}
+
+/* Enhanced scrollbar styling for better UX */
+::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a; /* slate-900 */
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb {
+  background: #4f46e5; /* indigo-600 */
+  border-radius: 3px;
+  border: none;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6366f1; /* indigo-500 */
+}
+::-webkit-scrollbar-corner {
+  background: #0f172a;
 }

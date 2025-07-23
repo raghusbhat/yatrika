@@ -758,6 +758,32 @@ const FEW_SHOT_EXAMPLES = `
 - "I want to plan a trip to Paris" → intent: "travel"
 `;
 
+// Helper function to calculate duration from start and end dates
+const calculateDurationFromDates = (startDate: string, endDate: string): string => {
+  try {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return "";
+    }
+    
+    // Calculate the difference in days (inclusive)
+    const timeDifference = end.getTime() - start.getTime();
+    const daysDifference = Math.ceil(timeDifference / (1000 * 60 * 60 * 24)) + 1;
+    
+    return `${daysDifference} days`;
+  } catch (error) {
+    console.error("❌ [DURATION CALCULATION] Error calculating duration:", error);
+    return "";
+  }
+};
+
+// Helper function to determine if we should use batch processing for long trips
+const shouldUseBatchProcessing = (expectedDays: number): boolean => {
+  return expectedDays > 10; // Use batch processing for trips longer than 10 days
+};
+
 // LangGraph node for structured itinerary generation
 const generateStructuredItinerary = async (
   state: ClarificationState & {
@@ -768,6 +794,19 @@ const generateStructuredItinerary = async (
   itinerary: string;
   thoughtChain: Array<{ step: string; prompt: string; response: string }>;
 }> => {
+  // Calculate duration from dates if not already present
+  let calculatedDuration = state.duration;
+  if (!calculatedDuration && state.startDate && state.endDate) {
+    calculatedDuration = calculateDurationFromDates(state.startDate, state.endDate);
+    // Update the state with calculated duration for consistency
+    state.duration = calculatedDuration;
+    console.log("📊 [DURATION CALCULATION] Calculated duration from dates:", {
+      startDate: state.startDate,
+      endDate: state.endDate,
+      calculatedDuration,
+    });
+  }
+
   console.log(
     "🎯 [LANGGRAPH ITINERARY NODE] Starting structured itinerary generation:",
     {
@@ -775,6 +814,7 @@ const generateStructuredItinerary = async (
       source: state.source,
       destination: state.destination,
       dates: `${state.startDate} to ${state.endDate}`,
+      duration: calculatedDuration,
       groupType: state.groupType,
       theme: state.tripTheme,
       hasUserProfile: !!userProfile,
@@ -794,8 +834,8 @@ const generateStructuredItinerary = async (
       `Travel dates: ${String(state.startDate)} to ${String(state.endDate)}`
     );
   }
-  if (state.duration)
-    (travelDetails as string[]).push(`Duration: ${String(state.duration)}`);
+  if (calculatedDuration)
+    (travelDetails as string[]).push(`Duration: ${String(calculatedDuration)}`);
   if (state.groupType)
     (travelDetails as string[]).push(`Group type: ${String(state.groupType)}`);
   if (state.budget)
@@ -836,46 +876,35 @@ const generateStructuredItinerary = async (
     userContext += `Local timezone: ${userProfile.locale.timezone}. `;
   }
 
-  // Create UI-optimized itinerary generation prompt
-  const itineraryPrompt = `You are a professional travel planner creating a structured itinerary for a modern travel app. Generate engaging, concise content optimized for mobile UI display.
+  // Extract the number of days for emphasis
+  const numberOfDays = calculatedDuration ? calculatedDuration.replace(' days', '') : 'specified number of';
+  const expectedDays = parseInt(numberOfDays) || 0;
+  const activitiesPerDay = expectedDays > 10 ? "3-4" : "4-6"; // Reduce activities for very long trips
+  
+  // Optimized prompt based on trip length
+  const itineraryPrompt = `Create a ${numberOfDays}-day itinerary for ${state.destination || 'the destination'}.
 
 ${userContext}
 
-TRAVEL DETAILS:
+TRIP DETAILS:
 ${travelDetails.join("\n")}
 
-INSTRUCTIONS FOR UI-FRIENDLY CONTENT:
-- Keep descriptions concise but engaging (2-3 sentences max)
-- Use specific names of places, restaurants, attractions
-- Include practical details like timing, costs, difficulty levels
-- Focus on unique experiences and local highlights
-- Provide actionable tips for each activity
-- Make budget estimates realistic and local-currency appropriate
-- Consider the group type and interests for personalization
+MANDATORY: Generate EXACTLY ${numberOfDays} days in dailyItinerary array. Days numbered 1 to ${numberOfDays}.
 
-MEDIA & SOCIAL CONTENT REQUIREMENTS:
-- For each location, suggest specific photo spots and Instagram-worthy viewpoints
-- Include popular hashtags for social media posts at each location
-- Recommend best times for photography (golden hour, crowd-free moments)
-- Mention unique local experiences perfect for videos and stories
-- Suggest interactive content opportunities (food tastings, cultural activities)
-- Include trending local spots that are photogenic and shareable
+Each day needs ${activitiesPerDay} activities:
+- Morning activity (with location, cost, 1-2 sentence description)
+- Lunch/meal (restaurant name, cuisine type, cost)
+- Afternoon activity (main attraction/experience)
+${expectedDays > 10 ? "" : "- Evening activity (dinner/leisure)"}
 
-CONTENT GUIDELINES:
-- Trip title should be catchy and Instagram-worthy (use hashtag format like #OotyAdventure)
-- Daily themes should be clear (e.g., "Cultural Immersion", "Adventure Day")
-- Activity types: sightseeing, food, activity, transport, accommodation, shopping, cultural
-- Difficulty levels: easy, moderate, challenging
-- Include 3-5 highlights for trip overview
-- Provide 5-8 activities per day (including meals and transport)
-- Restaurant recommendations should include signature dishes and photo opportunities
-- Accommodation should match the group type and budget
-- Include practical packing and cultural tips
-- For each activity, add photo/video suggestions in the tips section
-- Mention specific viewpoints, angles, and timing for best captures
-- Include local photography hotspots and hidden Instagram gems
+Requirements:
+- Activity types: sightseeing, food, activity, transport, cultural
+- Include specific place names and realistic costs
+- Keep descriptions brief but informative
+- Add practical tips for each activity
+- Trip title in hashtag format (e.g., #SwitzerlandAdventure)
 
-Create a comprehensive itinerary with all sections filled thoughtfully. Make it feel like a personalized travel guide created by a local expert.`;
+CRITICAL: The dailyItinerary array MUST contain ${numberOfDays} day objects. Generate all days from 1 to ${numberOfDays}.`;
 
   console.log(
     "📤 [LANGGRAPH ITINERARY NODE] Calling Gemini with structured output:",
@@ -898,15 +927,30 @@ Create a comprehensive itinerary with all sections filled thoughtfully. Make it 
   );
   const generationDuration = Date.now() - generationStartTime;
 
+  const actualDaysGenerated = structuredResult?.dailyItinerary?.length || 0;
+  
   console.log("📥 [LANGGRAPH ITINERARY NODE] Structured itinerary generated:", {
     timestamp: new Date().toISOString(),
     duration: `${generationDuration}ms`,
     hasResult: !!structuredResult,
     tripTitle: structuredResult?.tripOverview?.title,
-    daysCount: structuredResult?.dailyItinerary?.length || 0,
+    daysCount: actualDaysGenerated,
+    expectedDays: expectedDays,
+    daysMismatch: expectedDays - actualDaysGenerated,
     accommodationsCount: structuredResult?.accommodations?.length || 0,
     restaurantsCount: structuredResult?.restaurants?.length || 0,
   });
+
+  // Log warning if major day count mismatch (LLM capacity issue)
+  if (expectedDays > 0 && actualDaysGenerated < expectedDays / 2) {
+    console.warn("🚨 [LANGGRAPH ITINERARY NODE] Major day count shortfall detected:", {
+      timestamp: new Date().toISOString(),
+      expected: expectedDays,
+      actual: actualDaysGenerated,
+      shortfall: expectedDays - actualDaysGenerated,
+      possibleCause: "LLM context/complexity limits reached"
+    });
+  }
 
   // Convert structured result to formatted JSON string for frontend
   const itineraryJson = JSON.stringify(structuredResult, null, 2);

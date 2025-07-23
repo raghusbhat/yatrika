@@ -58,7 +58,7 @@ export const ActivityCard: React.FC<Activity> = ({
   }, [imageQuery]);
 
   return (
-    <Card className="overflow-hidden flex flex-col h-full">
+    <Card className="overflow-hidden flex flex-col h-full bg-slate-800/90 border-slate-700/50">
       <CardHeader className="p-0 relative">
         {isLoading ? (
           <Skeleton className="h-48 w-full" />
@@ -69,17 +69,17 @@ export const ActivityCard: React.FC<Activity> = ({
             className="w-full h-48 object-cover"
           />
         ) : (
-          <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-500 text-sm">Image not available</span>
+          <div className="w-full h-48 bg-slate-700 flex items-center justify-center">
+            <span className="text-slate-400 text-sm">Image not available</span>
           </div>
         )}
       </CardHeader>
       <CardContent className="p-4 flex-grow">
-        <CardTitle className="text-base font-bold mb-1">{title}</CardTitle>
-        <p className="text-xs text-gray-500 uppercase font-semibold">
+        <CardTitle className="text-base font-bold text-slate-100 mb-1">{title}</CardTitle>
+        <p className="text-xs text-slate-400 uppercase font-semibold">
           {timeOfDay}
         </p>
-        <p className="text-sm text-gray-700 mt-2">{description}</p>
+        <p className="text-sm text-slate-300 mt-2">{description}</p>
       </CardContent>
     </Card>
   );
